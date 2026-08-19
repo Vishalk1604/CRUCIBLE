@@ -1,0 +1,119 @@
+# Hex cap screws — the highest-volume, worst-described category in any MRO catalog.
+#
+# A typical ERP row reads "HX CAP SCR 3/8-16X1 GR5 ZP", which encodes diameter, thread
+# pitch, length, grade and finish in nineteen characters with no delimiters. Recovering
+# structure from that is the category's whole difficulty.
+
+category_id: fastener.hex_cap_screw
+name: Hex Cap Screws
+unspsc: "31161501"
+etim_class: EC001984
+
+attributes:
+  - name: nominal_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+    description: >
+      Major thread diameter. Written as a fraction ("3/8"), a number sign gauge ("#10")
+      or a metric designation ("M8") depending on the standard.
+
+  - name: threads_per_inch
+    kind: quantity
+    dimension: "1 / [length]"
+    canonical_unit: 1 / inch
+    description: >
+      Imperial thread count, the "16" in "3/8-16". Dimensionally an inverse length, which
+      is what stops a model writing a pitch in millimetres into this field.
+
+  - name: thread_pitch
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    description: >
+      Metric thread pitch, the "1.25" in "M8x1.25". A length, and the field where
+      "thread pitch: 4.2 kg" shows up when a model loses track of what it is reading.
+
+  - name: length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+    description: Overall length under the head.
+
+  - name: thread_length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    description: Threaded portion of the shank. Cannot exceed the overall length.
+
+  - name: width_across_flats
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    description: Wrench size across the hex head.
+
+  - name: head_height
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+
+  - name: grade
+    kind: nominal
+    required: true
+    vocabulary:
+      - SAE Grade 2
+      - SAE Grade 5
+      - SAE Grade 8
+      - ASTM A307
+      - ASTM A325
+      - ISO Class 8.8
+      - ISO Class 10.9
+      - ISO Class 12.9
+      - A2-70 stainless
+      - A4-80 stainless
+
+  - name: material
+    kind: nominal
+    required: true
+    vocabulary:
+      - medium carbon steel
+      - alloy steel
+      - low carbon steel
+      - 304 stainless steel
+      - 316 stainless steel
+      - silicon bronze
+      - brass
+
+  - name: finish
+    kind: nominal
+    vocabulary:
+      - zinc plated
+      - hot dip galvanized
+      - plain
+      - black oxide
+      - yellow zinc
+      - passivated
+
+  - name: tensile_strength
+    kind: quantity
+    dimension: "[pressure]"
+    canonical_unit: psi
+    description: Minimum tensile strength, e.g. 120000 psi for SAE Grade 5.
+
+  - name: drive_type
+    kind: nominal
+    vocabulary:
+      - external hex
+      - hex flange
+      - 12 point
+
+constraints:
+  # A bolt cannot have more thread than shank.
+  - thread_length <= length
+  # The head is always wider than the shank it sits on, and never taller than it is wide.
+  - nominal_diameter < width_across_flats
+  - head_height < width_across_flats
+  - nominal_diameter > 0
+  - length > 0

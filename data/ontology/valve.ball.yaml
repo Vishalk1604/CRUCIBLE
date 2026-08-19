@@ -1,0 +1,113 @@
+# Ball valves — the category the demo leads with.
+#
+# Attributes and constraints are data, not code, so a category can be authored by a
+# product manager or mined from a clean catalog without a deploy. Dimensions are what
+# the dimensional verifier checks against; constraints are what the constraint verifier
+# evaluates once values have been normalized.
+
+category_id: valve.ball
+name: Ball Valves
+unspsc: "40141607"
+etim_class: EC000212
+
+attributes:
+  - name: nominal_size
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+    description: >
+      Nominal pipe size the valve connects to. Written as a fraction in inches in almost
+      all North American data ("1/2", "1-1/2"), which is why fraction parsing is not
+      optional.
+
+  - name: bore
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+    description: >
+      Diameter of the ball opening. For a full-port valve this approximately equals the
+      nominal size; for a reduced-port valve it is smaller. It can never exceed the
+      nominal size, which is what makes it a useful consistency check.
+
+  - name: body_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    description: Outside diameter of the valve body at its widest point.
+
+  - name: end_to_end
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    description: Face-to-face dimension between the two end connections.
+
+  - name: pressure_rating
+    kind: quantity
+    dimension: "[pressure]"
+    canonical_unit: psi
+    required: true
+    description: >
+      Cold working pressure. Usually written as a trade rating rather than a unit —
+      "600 WOG", "150 WSP", "1000 CWP" — so the value carries its unit implicitly.
+
+  - name: temperature_range
+    kind: range
+    dimension: "[temperature]"
+    canonical_unit: degC
+    description: Operating temperature range, commonly written "-20 to 180 F".
+
+  - name: body_material
+    kind: nominal
+    required: true
+    vocabulary:
+      - 316 stainless steel
+      - 304 stainless steel
+      - carbon steel
+      - brass
+      - bronze
+      - ductile iron
+      - PVC
+      - CPVC
+
+  - name: seat_material
+    kind: nominal
+    vocabulary:
+      - PTFE
+      - RPTFE
+      - PEEK
+      - nylon
+      - Devlon
+
+  - name: end_connection
+    kind: nominal
+    required: true
+    vocabulary:
+      - NPT threaded
+      - BSP threaded
+      - socket weld
+      - butt weld
+      - flanged
+      - compression
+
+  - name: port_type
+    kind: nominal
+    vocabulary:
+      - full port
+      - standard port
+      - reduced port
+
+  - name: weight
+    kind: quantity
+    dimension: "[mass]"
+    canonical_unit: kilogram
+
+constraints:
+  # A ball opening larger than the pipe it connects to is not a manufacturing variant,
+  # it is an extraction error. This is the constraint the demo record violates.
+  - bore <= nominal_size
+  - bore <= body_diameter
+  - nominal_size <= body_diameter
+  - weight > 0
+  - pressure_rating > 0

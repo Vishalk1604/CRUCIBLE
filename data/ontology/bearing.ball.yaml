@@ -1,0 +1,93 @@
+# Ball bearings — chosen because the dimensional relationships are unusually rigid.
+#
+# A bearing's bore, outside diameter and width are fixed by ISO 15 for any given
+# designation, so a wrong value is not merely improbable, it is contradicted by the
+# geometry of the part. That makes this the cleanest category for demonstrating that
+# constraint checking finds errors confidence scores cannot.
+
+category_id: bearing.ball
+name: Ball Bearings
+unspsc: "31171504"
+etim_class: EC000504
+
+attributes:
+  - name: bore_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+    description: >
+      Inner diameter. In the common metric series this is recoverable from the
+      designation itself: 6205 has a 25 mm bore, because the last two digits times five
+      give the bore for codes 04 and above.
+
+  - name: outside_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+
+  - name: width
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    required: true
+
+  - name: dynamic_load_rating
+    kind: quantity
+    dimension: "[force]"
+    canonical_unit: newton
+    description: Basic dynamic radial load rating, C.
+
+  - name: static_load_rating
+    kind: quantity
+    dimension: "[force]"
+    canonical_unit: newton
+    description: Basic static radial load rating, C0.
+
+  - name: max_speed
+    kind: quantity
+    dimension: "1 / [time]"
+    canonical_unit: 1 / minute
+    description: Limiting speed in RPM.
+
+  - name: seal_type
+    kind: nominal
+    required: true
+    vocabulary:
+      - open
+      - 2RS rubber sealed both sides
+      - RS rubber sealed one side
+      - 2Z metal shielded both sides
+      - Z metal shielded one side
+
+  - name: internal_clearance
+    kind: nominal
+    vocabulary:
+      - C2
+      - CN normal
+      - C3
+      - C4
+      - C5
+
+  - name: cage_material
+    kind: nominal
+    vocabulary:
+      - pressed steel
+      - polyamide
+      - brass
+      - phenolic
+
+  - name: weight
+    kind: quantity
+    dimension: "[mass]"
+    canonical_unit: kilogram
+
+constraints:
+  # Geometry, not preference. A bearing whose bore exceeds its outside diameter is
+  # inside out.
+  - bore_diameter < outside_diameter
+  - width < outside_diameter
+  - bore_diameter > 0
+  - weight > 0
+  - max_speed > 0
