@@ -1,0 +1,1 @@
+"""Crucible emit stage."""

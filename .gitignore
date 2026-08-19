@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Models — never commit weights
+models/
+*.gguf
+*.safetensors
+*.bin
+*.pt
+
+# Data — raw corpora and generated artifacts stay local
+data/raw/*
+!data/raw/.gitkeep
+data/generated/*
+!data/generated/.gitkeep
+*.duckdb
+*.sqlite
+*.sqlite3
+
+# Outputs
+runs/
+outputs/
+*.log
+
+# Node
+node_modules/
+.vite/
+frontend/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

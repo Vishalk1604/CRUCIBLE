@@ -1,0 +1,1 @@
+"""Crucible extract stage."""
