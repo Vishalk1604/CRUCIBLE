@@ -22,6 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+from crucible.units import abbreviate_unit
+
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
@@ -226,14 +228,19 @@ class NormalizedValue(BaseModel):
     text: str | None = None  # TEXT
 
     def render(self) -> str:
-        """Human-readable form, for review queues and export."""
+        """Human-readable form, for review queues and export.
+
+        Units render as symbols rather than canonical names: a reviewer scanning a queue
+        should see "12.7 mm", not "12.7 millimeter".
+        """
+        symbol = abbreviate_unit(self.unit) if self.unit else ""
         match self.kind:
             case ValueKind.QUANTITY:
-                return f"{self.magnitude:g} {self.unit}" if self.magnitude is not None else "-"
+                return f"{self.magnitude:g} {symbol}".strip() if self.magnitude is not None else "-"
             case ValueKind.RANGE:
                 if self.low is None or self.high is None:
                     return "-"
-                return f"{self.low:g} to {self.high:g} {self.unit or ''}".strip()
+                return f"{self.low:g} to {self.high:g} {symbol}".strip()
             case ValueKind.NOMINAL:
                 return self.term or "-"
             case ValueKind.BOOLEAN:

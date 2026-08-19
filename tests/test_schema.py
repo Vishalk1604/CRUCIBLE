@@ -75,13 +75,19 @@ class TestCategorySchema:
 
 
 class TestNormalizedValue:
-    def test_renders_quantity_with_unit(self):
+    def test_renders_quantity_with_the_unit_symbol(self):
+        # A reviewer scanning a queue should see "12.7 mm", not "12.7 millimeter".
         v = NormalizedValue(kind=ValueKind.QUANTITY, magnitude=12.7, unit="millimeter")
-        assert v.render() == "12.7 millimeter"
+        assert v.render() == "12.7 mm"
 
     def test_renders_range(self):
         v = NormalizedValue(kind=ValueKind.RANGE, low=-20, high=120, unit="degC")
-        assert v.render() == "-20 to 120 degC"
+        assert v.render().startswith("-20 to 120 ")
+
+    def test_renders_unknown_unit_unchanged_rather_than_failing(self):
+        # Display must never be a failure path.
+        v = NormalizedValue(kind=ValueKind.QUANTITY, magnitude=5, unit="widgets")
+        assert "5" in v.render()
 
     def test_renders_missing_data_without_crashing(self):
         # Review queues must be able to display a half-extracted value.

@@ -352,3 +352,17 @@ _FRIENDLY_DIMENSIONS: dict[str, str] = {
 def friendly_dimension(dim: str) -> str:
     """Render a dimensionality for a human, falling back to pint's form when unmapped."""
     return _FRIENDLY_DIMENSIONS.get(dim, dim)
+
+
+@lru_cache(maxsize=256)
+def abbreviate_unit(unit: str) -> str:
+    """The compact symbol for a unit name: 'millimeter' -> 'mm'.
+
+    Canonical unit names are what the schema stores, but a review queue showing
+    "200 millimeter" reads like a machine wrote it. Unknown units pass through
+    unchanged rather than raising, since display must never be a failure path.
+    """
+    try:
+        return f"{registry().Unit(unit):~}"
+    except Exception:  # noqa: BLE001 - formatting is best-effort by design
+        return unit
