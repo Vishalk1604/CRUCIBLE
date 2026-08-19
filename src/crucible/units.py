@@ -326,3 +326,29 @@ def convert(qty: ParsedQuantity, target_unit: str) -> float:
 def dimensionality(unit: str) -> str:
     """The pint dimensionality string for a unit name, e.g. 'inch' -> '[length]'."""
     return str(registry().Unit(unit).dimensionality)
+
+
+#: Readable names for the dimensionalities that appear in industrial attributes.
+#: pint renders pressure as "[mass] / [length] / [time] ** 2", which is correct and
+#: useless to the merchandiser who has to action the review.
+_FRIENDLY_DIMENSIONS: dict[str, str] = {
+    "[length]": "length",
+    "[mass]": "mass",
+    "[time]": "time",
+    "[temperature]": "temperature",
+    "[current]": "electric current",
+    "[mass] / [length] / [time] ** 2": "pressure",
+    "[length] ** 2 * [mass] / [time] ** 2": "torque or energy",
+    "[length] * [mass] / [time] ** 2": "force",
+    "[length] ** 2 * [mass] / [time] ** 3": "power",
+    "[length] ** 3": "volume",
+    "[length] ** 3 / [time]": "flow rate",
+    "1 / [time]": "frequency",
+    "[length] / [time]": "speed",
+    "": "dimensionless",
+}
+
+
+def friendly_dimension(dim: str) -> str:
+    """Render a dimensionality for a human, falling back to pint's form when unmapped."""
+    return _FRIENDLY_DIMENSIONS.get(dim, dim)
