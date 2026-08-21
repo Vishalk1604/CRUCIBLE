@@ -92,6 +92,46 @@ Runs entirely on a laptop: **8 GB VRAM**, local-first inference, with hosted mod
 an escalation tier behind a swappable interface. A million-SKU catalog should cost dollars, and
 the data never has to leave the building.
 
+## Running it
+
+Everything runs locally. You need [Ollama](https://ollama.com) and the extractor model:
+
+```bash
+ollama pull qwen3-vl:8b
+```
+
+Then install and launch the app:
+
+```bash
+uv sync --extra models --extra api --extra dev
+```
+
+```bash
+uv run crucible-app
+```
+
+Open http://127.0.0.1:8000. The first launch extracts the corpus with the local model
+(around 20 minutes for 600 products on an 8 GB GPU) and caches the result; later launches
+load instantly.
+
+## Results so far
+
+Certified against a local Qwen3-VL-8B's **own** extraction errors — not injected faults —
+on a 600-product generated corpus. Unverified, that extraction is 30.3% wrong.
+
+| Requested α | Automation | Certified bound | Realised error |
+|---|---|---|---|
+| 2% | refused | — | — |
+| 3% | 16.8% | 2.26% | 0.00% |
+| 15% | 67.3% | 9.36% | 7.81% |
+
+Every promise holds, and where the evidence cannot support one the system refuses instead
+of issuing it. Scorer AUROC is 0.910.
+
+The corpus is synthetic and the numbers demonstrate the method rather than performance on
+a real catalog. The known limitation, its measured cause, and what fixes it are in
+[`docs/RESULTS.md`](docs/RESULTS.md).
+
 ## Status
 
 Early development. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
