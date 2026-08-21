@@ -27,9 +27,10 @@ from crucible.assay.coherence import CoherenceVerifier
 from crucible.assay.coherence import fit as fit_profile
 from crucible.assay.constraints import ConstraintVerifier
 from crucible.assay.dimensional import DimensionalVerifier
+from crucible.assay.ensemble import EnsembleIndex, EnsembleVerifier, build_index
 from crucible.certify.conformal import apply_threshold, select_threshold
 from crucible.certify.scorer import LearnedScorer, discrimination
-from crucible.corpus.harvest import harvest
+from crucible.corpus.harvest import harvest, harvest_sample
 from crucible.normalize import normalise_record
 from crucible.ontology import load_all
 from crucible.pipeline import ScoredValue, values_agree
@@ -80,6 +81,7 @@ class CertificationSession:
         seed: int = 20260820,
         use_rules: bool = False,
         delta: float = 0.05,
+        ensemble_samples: int = 2,
     ) -> None:
         self.model = model
         self.delta = delta
@@ -99,6 +101,12 @@ class CertificationSession:
         # The coherence profile is fitted on the extraction, so it must be built before
         # the verifiers run and cannot be a per-value construction.
         self.profile = fit_profile(self.records, self.schemas)
+
+        # Resampling passes are loaded only from cache. Generating one takes twenty
+        # minutes of inference, and silently doing that inside a constructor - during
+        # app startup, no less - would look like a hang. Absent samples simply mean the
+        # ensemble verifier abstains everywhere, which the fusion model handles.
+        self.ensemble = self._load_ensemble(ensemble_samples, model, n_per_category, seed)
 
         self.scored = self._assay()
         if not self.scored:
@@ -131,11 +139,37 @@ class CertificationSession:
             self.baseline_error * 100,
         )
 
+    def _load_ensemble(
+        self, n_samples: int, model: str, n_per_category: int, seed: int
+    ) -> EnsembleIndex:
+        passes = []
+        for i in range(1, n_samples + 1):
+            try:
+                sample = harvest_sample(i, model=model, n_per_category=n_per_category, seed=seed)
+            except Exception:
+                logger.warning("resampling pass %d unavailable", i)
+                continue
+            if not sample.from_cache:
+                # Ran inference rather than reading cache. Keep it - it is valid - but
+                # say so, because a constructor that quietly spends twenty minutes is a
+                # bug waiting to be reported as a hang.
+                logger.warning("resampling pass %d was generated, not cached", i)
+            passes.append(sample.records)
+
+        if not passes:
+            logger.info("no resampling passes found; ensemble verifier will abstain")
+            return EnsembleIndex()
+
+        index = build_index(passes, self.schemas)
+        logger.info("ensemble index: %d values across %d passes", len(index), len(passes))
+        return index
+
     def _verifiers(self, schema) -> list:
         return [
             DimensionalVerifier(),
             ConstraintVerifier(schema),
             CoherenceVerifier(self.profile),
+            EnsembleVerifier(self.ensemble),
         ]
 
     def _assay(self) -> list[ScoredValue]:
