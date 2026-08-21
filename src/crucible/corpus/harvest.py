@@ -161,3 +161,60 @@ def harvest(
     logger.info("harvest complete: %s", extractor.stats.summary())
 
     return Harvest(records, gold, model, seconds, key, from_cache=False)
+
+
+def harvest_sample(
+    sample_index: int,
+    model: str = "qwen3-vl:8b",
+    n_per_category: int = 200,
+    seed: int = 20260820,
+    temperature: float = 0.7,
+    cache_dir: Path | None = None,
+    refresh: bool = False,
+    progress_every: int = 50,
+) -> Harvest:
+    """A second opinion: the same corpus extracted again under sampling.
+
+    The ensemble verifier needs the model's answer to vary before its stability means
+    anything. At temperature zero every pass is identical and agreement is trivially
+    total, so these passes deliberately sample - what survives across them is what the
+    model is confident about, and what changes is where it was guessing.
+
+    Each sample gets its own decoding seed and its own cache entry, so passes are
+    reproducible individually and can be built up incrementally rather than requiring
+    all of them in one run.
+    """
+    corpus = generate_corpus(n_per_category, seed=seed)
+    gold = {g.raw.sku: g for g in corpus}
+    schemas = load_all()
+
+    key = _cache_key(f"{model}@t{temperature}#s{sample_index}", n_per_category, seed, False)
+    path = (cache_dir or DEFAULT_CACHE) / f"sample-{key}.json"
+
+    if not refresh:
+        cached = _read(path)
+        if cached is not None:
+            records, seconds = cached
+            return Harvest(records, gold, model, seconds, key, from_cache=True)
+
+    extractor = LLMExtractor(
+        model=model,
+        options={"temperature": temperature, "seed": seed + sample_index},
+    )
+    records: list[ProductRecord] = []
+    started = time.monotonic()
+
+    for i, entry in enumerate(corpus, start=1):
+        schema = schemas.get(entry.category_id)
+        if schema is None:
+            continue
+        records.append(extractor.extract(entry.raw, schema))
+        if progress_every and i % progress_every == 0:
+            elapsed = time.monotonic() - started
+            logger.info("sample %d: %d/%d (%.1fs)", sample_index, i, len(corpus), elapsed)
+
+    seconds = time.monotonic() - started
+    _write(path, records, seconds)
+    logger.info("sample %d complete: %s", sample_index, extractor.stats.summary())
+
+    return Harvest(records, gold, model, seconds, key, from_cache=False)
