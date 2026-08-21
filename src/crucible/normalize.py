@@ -207,12 +207,11 @@ def normalise_value(text: str, spec: AttributeSpec) -> Normalisation:
     if vocabulary_match is not None:
         return Normalisation(original, vocabulary_match, "vocabulary")
 
+    # Only accept a synonym the attribute actually permits, otherwise `ss` would resolve
+    # to a stainless grade on an attribute where it means something else entirely.
     synonym = SYNONYMS.get(stripped.lower())
-    if synonym is not None:
-        # Only accept a synonym the attribute actually permits, otherwise `ss` would
-        # resolve to a stainless grade on an attribute where it means something else.
-        if not spec.vocabulary or synonym in spec.vocabulary:
-            return Normalisation(original, synonym, "synonym")
+    if synonym is not None and (not spec.vocabulary or synonym in spec.vocabulary):
+        return Normalisation(original, synonym, "synonym")
 
     return Normalisation(original, original, "unchanged")
 

@@ -285,3 +285,96 @@ def _build_certificate(
         verifier_versions=dict.fromkeys(verifier_names, "0.1.0"),
         schema_fingerprint=",".join(sorted(fingerprint(s) for s in schemas.values())),
     )
+
+
+def run_real(
+    alpha: float = 0.05,
+    delta: float = 0.05,
+    n_per_category: int = 200,
+    seed: int = 20260820,
+    model: str = "qwen3-vl:8b",
+    use_rules: bool = False,
+) -> RunResult:
+    """Certify against a real extractor's real mistakes.
+
+    The difference from `run` is the error distribution. That one injects faults, because
+    the rule extractor is circular against this corpus and yields nothing to calibrate
+    on. This one runs the model and takes whatever it gets wrong.
+
+    `use_rules` defaults off, which inverts the production cascade on purpose. With rules
+    first the error rate on this corpus is zero - rules win every contested attribute and
+    are perfect here by construction - so the cascade as shipped would leave calibration
+    nothing to learn from. Reading the model-only path is what makes the labels real.
+
+    Normalisation runs before scoring. Without it the labels are dominated by vocabulary
+    mismatch rather than correctness, and the verifiers would be tuned to detect
+    formatting.
+    """
+    from crucible.corpus.harvest import harvest
+    from crucible.normalize import normalise_record
+
+    schemas = load_all()
+    harvested = harvest(model=model, n_per_category=n_per_category, seed=seed, use_rules=use_rules)
+    records = [
+        normalise_record(r, schemas[r.category_id])
+        for r in harvested.records
+        if r.category_id in schemas
+    ]
+
+    scored = assay_values(records, harvested.gold, schemas)
+    if not scored:
+        raise RuntimeError("no scorable values; harvest or schemas are misconfigured")
+
+    fit = [s for i, s in enumerate(scored) if i % 3 == 0]
+    calibrate = [s for i, s in enumerate(scored) if i % 3 == 1]
+    test = [s for i, s in enumerate(scored) if i % 3 == 2]
+
+    verifier_names = sorted({sig.verifier for s in scored for sig in s.assay.signals})
+    scorer = LearnedScorer(verifier_names)
+    scorer.fit([s.assay for s in fit], [s.is_error for s in fit])
+    for split in (calibrate, test):
+        scorer.annotate([s.assay for s in split])
+
+    selection = select_threshold(
+        [s.assay.nonconformity for s in calibrate],
+        [s.is_error for s in calibrate],
+        alpha=alpha,
+        delta=delta,
+    )
+
+    certified = [
+        CertifiedValue(
+            value=_placeholder_value(s),
+            assay=s.assay,
+            decision=decision,
+            threshold=selection.threshold,
+        )
+        for s, decision in zip(
+            test, apply_threshold([s.assay for s in test], selection.threshold), strict=True
+        )
+    ]
+
+    published = [
+        s for s, c in zip(test, certified, strict=True) if c.decision is Decision.AUTO_PUBLISH
+    ]
+    realized = sum(s.is_error for s in published) / len(published) if published else 0.0
+    baseline = sum(s.is_error for s in test) / len(test) if test else 0.0
+    auroc = discrimination([s.assay.nonconformity for s in test], [s.is_error for s in test])
+
+    certificate = None
+    if selection.feasible and selection.stats:
+        certificate = _build_certificate(selection.stats, certified, schemas, verifier_names, seed)
+        certificate.proposer_model = model
+
+    return RunResult(
+        certificate=certificate,
+        selection=selection,
+        certified=certified,
+        realized_error=realized,
+        baseline_error=baseline,
+        auroc=auroc,
+        n_test=len(test),
+        faults=[],
+        # Not a simulation. These are the model's own mistakes.
+        simulated=False,
+    )
