@@ -31,6 +31,7 @@ dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.8"]
 
 [project.scripts]
 crucible = "crucible.cli:app"
+crucible-app = "crucible.api.app:main"
 
 # CUDA 12.8 wheels. Blackwell (RTX 50-series, sm_120) requires 12.8 or newer, and
 # the Windows CUDA wheels top out at torch 2.9.x on this index - hence the pin below
