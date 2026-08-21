@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from crucible.extract.rules import ERP_DOC_ID
