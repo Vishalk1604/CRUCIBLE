@@ -121,12 +121,13 @@ on a 600-product generated corpus. Unverified, that extraction is 30.3% wrong.
 
 | Requested α | Automation | Certified bound | Realised error |
 |---|---|---|---|
-| 2% | refused | — | — |
-| 3% | 16.8% | 2.26% | 0.00% |
-| 15% | 67.3% | 9.36% | 7.81% |
+| 3% | refused | — | — |
+| 5% | 9.0% | 4.31% | 0.00% |
+| 7% | 18.7% | 3.19% | 1.22% |
+| 10% | 65.5% | 8.33% | 6.28% |
 
 Every promise holds, and where the evidence cannot support one the system refuses instead
-of issuing it. Scorer AUROC is 0.910.
+of issuing it. Scorer AUROC is 0.928 across four verifiers.
 
 The corpus is synthetic and the numbers demonstrate the method rather than performance on
 a real catalog. The known limitation, its measured cause, and what fixes it are in
