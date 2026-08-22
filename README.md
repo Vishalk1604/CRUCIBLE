@@ -133,9 +133,19 @@ The corpus is synthetic and the numbers demonstrate the method rather than perfo
 a real catalog. The known limitation, its measured cause, and what fixes it are in
 [`docs/RESULTS.md`](docs/RESULTS.md).
 
+## Documentation
+
+| | |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Project thesis, non-negotiables, and traps that already cost time |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Install, run, current state, prioritised next steps |
+| [`docs/RESULTS.md`](docs/RESULTS.md) | Measured numbers, verifier ablation, and honest caveats |
+
 ## Status
 
-Early development. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
+Working end to end: extraction, verification, fusion, certification, and a local web app
+with the risk dial. The corpus is generated; replacing it with real catalog data is the
+next priority.
 
 ## License
 
