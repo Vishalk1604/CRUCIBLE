@@ -49,3 +49,6 @@ Thumbs.db
 # Icecat daily index: measured at 0/999 coverage on this catalog (see DIARY entry 4).
 # Kept locally as evidence, not worth 1.3 MB in history.
 daily.index.xml.gz
+
+# Presenter notes - local only.
+DEMO-SCRIPT.md
