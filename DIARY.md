@@ -1816,3 +1816,63 @@ attributes** while structure and honesty hold. That is the right failure mode an
 be said out loud rather than discovered by a judge.
 
 **State.** **774 tests** (was 768), lint clean.
+
+---
+
+## Entry 30 — 2026-08-23 — Final hour: unseen-data coverage, fractions, committed
+
+**Prompt.** "you have final one hour... focus on optimal changes... make it ready"
+
+**Chose the highest-leverage gap:** the stress test had routed **1 of 10** unseen products.
+If the evaluation set is a different product mix, that was the difference between a rich
+sheet and a thin one — the single biggest risk left.
+
+### 1. Taxonomy expanded 21 → 29 nodes
+
+Added faucets, pipe fittings, plumbing valves, wiring devices, fasteners, HVAC, industrial
+printers, fall protection. **Faucets and Fittings were not guesses** — the Solution Guide
+specifies both end to end and calls Faucets *"an excellent scope for a demo"*, which makes
+them the likeliest categories in an unseen set.
+
+Full schemas for both. `fitting.pipe` carries the constraint that earns it its place:
+`reduced_size < nominal_size`. A reducing fitting is written "3/4 x 1/2", both numbers are
+inches, and nothing but that relationship distinguishes a correct extraction from a reversed
+one — the cut-off wheel argument in a different trade.
+
+⚠️ Bare `90` and `45` in a YAML keyword list parsed as **integers** and failed validation —
+the same trap as `off` → `False` in Entry 6. Eager validation caught it at load. Quote every
+bare numeric in YAML.
+
+**Result: 1/10 → 5/10 routed**, 37 → 40 columns. The five still generic are correct: two
+empty descriptions, a 400-character string, a bare "Widget", and a Japanese description.
+
+### 2. Decimal → fraction
+
+The guide: *"Manufacturers publish decimals; trade buyers search fractions. Convert 0.5 to
+1/2 and 50.25 in to 50-1/4 in."* `Decimal_Fraction.xlsx` was never published and did not need
+to be — the table is exactly n/64, so it is generated rather than transcribed.
+
+`0.5 → 1/2`, `50.25 → 50-1/4`, `0.984375 → 63/64`. And it **refuses** 0.51, 0.333, 1.234:
+forcing a non-standard decimal to the nearest sixty-fourth would silently change a dimension,
+and a decimal that is not a standard fraction is information about the part.
+
+Visible immediately on the unseen catalog: `BR-90-050 Elbow, 1/2 in Size` where it had read
+`0.5 in`.
+
+### 3. Committed — `c2a0fcd`, 78 files, 16,481 insertions
+
+Set the repo-local identity to the user's own, since this is their machine and their work.
+The staging excludes the CRLF-only churn, which remains as unstaged ` M` entries.
+
+The message records the five measured findings and the three deliberate refusals, because
+this project's commit messages are where the wrong turns live.
+
+**Final state.** **795 tests**, lint clean, committed.
+
+| | |
+|---|---|
+| Real catalog, 120 products | 60–61 / 252 columns, 1.35 s/product |
+| Unseen hostile catalog | 40 / 252 columns, 5/10 routed, 0 crashes |
+| Character-limit compliance | 95–100% |
+| Controlled-vocabulary compliance | 79% |
+| Taxonomy / schemas | 29 nodes / 13 schemas |
