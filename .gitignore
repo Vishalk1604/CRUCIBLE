@@ -64,3 +64,6 @@ docs/HANDOFF.md
 
 # The organisers' template, kept locally as the source for the built deck.
 \[EXT\] UniHack-Protoype Template*.pptx
+
+# Office lock files. Created while a document is open; never belong in the repo.
+~$*

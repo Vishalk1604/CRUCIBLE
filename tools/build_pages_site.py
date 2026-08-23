@@ -96,7 +96,10 @@ SHIM = """
   const nearest = (want, keys) =>
     keys.reduce((a, b) => Math.abs(b - want) < Math.abs(a - want) ? b : a);
 
-  window.fetch = (async (original) => async (input, init) => {
+  // NB: the outer wrapper must not be async - an async IIFE returns a Promise, and
+  // assigning that to window.fetch replaces the function with a thenable, so every
+  // call throws and the page reports it cannot reach the API.
+  window.fetch = ((original) => async (input, init) => {
     const url = typeof input === "string" ? input : input.url;
     if (!url || !url.includes("/api/")) return original(input, init);
 
@@ -145,12 +148,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 def inject(html: str, snippet: str) -> str:
-    """Put a snippet just inside <body>, or at the end if there is no body tag."""
-    match = re.search(r"<body[^>]*>", html, re.I)
-    if not match:
-        return html + snippet
-    at = match.end()
-    return html[:at] + snippet + html[at:]
+    """Put a snippet where it runs before the page's own scripts.
+
+    Order matters and getting it wrong is silent. These pages have no <body> tag, so an
+    earlier version appended at the end of the document - after the boot script had
+    already run, failed to reach an API that does not exist on a static host, and written
+    "cannot reach the API" into the header. The shim has to be installed before any
+    script that might call fetch.
+    """
+    for pattern in (r"<head[^>]*>", r"<body[^>]*>"):
+        match = re.search(pattern, html, re.I)
+        if match:
+            at = match.end()
+            return html[:at] + snippet + html[at:]
+
+    # No head or body: land before the first script instead of after the last one.
+    match = re.search(r"<script", html, re.I)
+    if match:
+        at = match.start()
+        return html[:at] + snippet + html[at:]
+    return snippet + html
 
 
 def build(skip_capture: bool = False) -> int:

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign in — Crucible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="crucible.css" />
+<style>
+  .shell { min-height: 100dvh; display: grid; grid-template-columns: 1.05fr 1fr; }
+
+  .aside {
+    position: relative; overflow: hidden;
+    background: var(--bg-raised); border-right: 1px solid var(--line);
+    padding: var(--s7) var(--s7) var(--s6);
+    display: flex; flex-direction: column; gap: var(--s5);
+  }
+  .aside .forge {
+    position: absolute; inset: auto -20% -40% -20%; height: 90%; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(48% 52% at 30% 70%, color-mix(in srgb, var(--ember) 24%, transparent), transparent 70%),
+      radial-gradient(40% 40% at 78% 88%, color-mix(in srgb, var(--amber) 15%, transparent), transparent 68%);
+    filter: blur(52px);
+  }
+  .aside > * { position: relative; z-index: 1; }
+
+  .pitch { border-left: 2px solid var(--primary); padding-left: var(--s5); max-width: 30ch; }
+  .pitch h2 { font-size: clamp(28px, 3vw, 40px); }
+
+  .ticks { list-style: none; margin: 0; padding: 0; font-size: 14px; color: var(--fg-dim); }
+  .ticks li { position: relative; padding-left: 24px; margin-bottom: var(--s3); }
+  .ticks li::before { content: "→"; position: absolute; left: 0; color: var(--primary); font-family: var(--mono); }
+
+  .pane { display: grid; place-items: center; padding: var(--s6); }
+  .form { width: min(410px, 100%); }
+
+  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 7px; letter-spacing: .01em; }
+  .field { margin-bottom: var(--s4); }
+  .field input {
+    width: 100%; font: inherit; font-size: 15px; color: var(--fg);
+    padding: 12px 14px; min-height: 48px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line-bright); border-radius: var(--r);
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s;
+  }
+  .field input::placeholder { color: var(--fg-faint); }
+  .field input:hover { border-color: var(--fg-faint); }
+  .field input:focus {
+    outline: none; border-color: var(--primary); background: var(--surface);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ember) 15%, transparent);
+  }
+
+  @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .aside { display: none; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="aside">
+    <div class="forge" aria-hidden="true"></div>
+
+    <a class="logo" href="index.html">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M5 20h14M7 4h10l-2 7 3 6H6l3-6z"/></svg></span>
+      Crucible
+    </a>
+
+    <div class="grow"></div>
+
+    <div class="pitch">
+      <h2>Check the queue, not the catalog.</h2>
+    </div>
+    <p class="hint" style="max-width: 42ch; font-size: 15px; margin: 0">
+      Crucible publishes only what its checks can stand behind, and hands you a short list
+      of everything else — each item with the reason it was held back.
+    </p>
+
+    <ul class="ticks" style="margin-top: var(--s3)">
+      <li>Six independent verifiers on every value</li>
+      <li>A source quote behind every populated cell</li>
+      <li>Runs offline, on your machine</li>
+    </ul>
+
+    <div class="grow"></div>
+
+    <p class="hint" style="margin: 0; font-size: 12.5px">
+      No catalog data leaves the building.
+    </p>
+  </aside>
+
+  <main class="pane">
+    <div class="form">
+      <p class="eyebrow">Workspace access</p>
+      <h1 style="font-size: clamp(30px, 4vw, 42px); margin-top: var(--s3)">Sign in</h1>
+      <p class="hint" style="margin-top: var(--s2); margin-bottom: var(--s5)">
+        Continue to your workspace.
+      </p>
+
+      <div class="banner info" style="margin-bottom: var(--s5)">
+        <span class="ico" aria-hidden="true">i</span>
+        <div>
+          <strong>Demo sign-in.</strong> This build has no account system and stores no
+          credentials — any details take you straight through. Nothing typed here is
+          transmitted or saved.
+        </div>
+      </div>
+
+      <form id="signin-form" novalidate>
+        <div class="field">
+          <label for="email">Work email</label>
+          <input id="email" name="email" type="email" placeholder="you@distributor.com"
+                 autocomplete="email" aria-describedby="email-hint" />
+          <p class="hint" id="email-hint" style="margin: 7px 0 0; font-size: 12.5px">
+            Used only to name your workspace.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="org">Company</label>
+          <input id="org" name="org" type="text" placeholder="Acme Supply Co."
+                 autocomplete="organization" />
+        </div>
+
+        <button class="btn" type="submit" style="width: 100%; margin-top: var(--s2)">
+          Continue to workspace
+        </button>
+      </form>
+
+      <p class="hint" style="margin-top: var(--s6); font-size: 13px">
+        <a href="index.html">Back to the overview</a>
+        <span style="color: var(--fg-faint)"> · </span>
+        <a href="certify.html">See the live guarantee</a>
+      </p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  // No auth, by design. The workspace name lives in sessionStorage purely so the app can
+  // greet the visitor; it is never sent anywhere and it dies with the tab.
+  document.getElementById("signin-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const org = document.getElementById("org").value.trim();
+    try {
+      sessionStorage.setItem("crucible.workspace", org || "Your workspace");
+      if (email) sessionStorage.setItem("crucible.user", email);
+    } catch (_) {
+      /* private browsing: the app falls back to a default name */
+    }
+    window.location.href = "app.html";
+  });
+</script>
+</body>
+</html>
