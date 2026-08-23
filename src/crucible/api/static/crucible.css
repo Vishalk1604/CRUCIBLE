@@ -248,6 +248,12 @@ tbody tr:hover { background: var(--surface-hi); }
 mark { background: color-mix(in srgb, var(--amber) 32%, transparent); color: var(--fg); padding: 0 3px; border-radius: 2px; }
 
 /* ── banners ────────────────────────────────────────────────────────────── */
+/* The `hidden` attribute is a UA style on the element; any class that sets `display`
+   outranks it and the element renders anyway. Every .banner[hidden] error box was
+   therefore visible - an empty red panel with a bare "!" sat under the upload form.
+   Restore the attribute's meaning globally rather than patching each component. */
+[hidden] { display: none !important; }
+
 .banner {
   display: flex; gap: var(--s3); align-items: flex-start;
   border: 1px solid var(--line-bright); border-left: 3px solid var(--accent);
