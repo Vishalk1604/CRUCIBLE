@@ -28,7 +28,7 @@ git config user.email "your-email"
 
 | File | Why |
 |---|---|
-| `CLAUDE.md` | Claude Code loads this automatically. The project's thesis, six non-negotiables, and the traps that already cost hours. |
+| `CONTEXT.md` | The project's thesis, six non-negotiables, and the traps that already cost hours. |
 | `docs/HANDOFF.md` | Install steps, how to run it, current state, and what to do next in priority order. |
 | `docs/RESULTS.md` | The measured numbers, the verifier ablation, and the caveats that go with them. |
 

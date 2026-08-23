@@ -1,6 +1,6 @@
 # Handoff
 
-Everything needed to pick this up on another machine. Read `CLAUDE.md` first for the
+Everything needed to pick this up on another machine. Read `CONTEXT.md` first for the
 project's thesis and its non-negotiables; this document covers setup, current state, and
 what to do next.
 

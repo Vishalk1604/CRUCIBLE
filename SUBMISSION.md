@@ -264,4 +264,4 @@ aloud. The real-catalog figures live in `docs/RESULTS.md`, not on that page.
 | [`docs/RESULTS.md`](docs/RESULTS.md) | Every measured number, with its command and caveat |
 | [`guide.md`](guide.md) | The client's Solution Guide, transcribed |
 | [`DIARY.md`](DIARY.md) | Append-only log — every decision, measurement and wrong turn |
-| [`CLAUDE.md`](CLAUDE.md) | The non-negotiables |
+| [`CONTEXT.md`](CONTEXT.md) | The non-negotiables |

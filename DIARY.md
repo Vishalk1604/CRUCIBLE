@@ -15,7 +15,7 @@ without re-deriving anything, and without repeating a wrong turn that has alread
 3. **Record the prompt.** Paraphrase is fine for long ones, but keep the user's actual
    wording where the phrasing carried intent.
 4. **Record numbers with their caveats.** A figure without its caveat becomes a claim.
-5. **Read `CLAUDE.md` first** for the project's thesis and its six non-negotiables, then
+5. **Read `CONTEXT.md` first** for the project's thesis and its six non-negotiables, then
    `plan.md` for the ordered build steps, then the newest entry here for current state.
 
 Entry format:
@@ -97,7 +97,7 @@ placement while the model was resident.
 
 **Measured.**
 - `ollama ps` → `qwen3-vl:8b  6.2 GB  13%/87% CPU/GPU  4096 ctx`, 6709 MiB on the card.
-  The 13/87 split matches what `CLAUDE.md` documents for a 6.1 GB model on 8 GB of VRAM.
+  The 13/87 split matches what `CONTEXT.md` documents for a 6.1 GB model on 8 GB of VRAM.
 - torch: `sm_120` (Blackwell), 5.4 TFLOP/s fp32 on a real matmul — proving it *computes*
   on GPU, not merely that `is_available()` returns True.
 - Warm extraction: 1.85s, 1.28s, 1.35s. `15/15 values grounded, 0 empty, 0 unparseable`.
@@ -179,7 +179,7 @@ cache, and since `CertificationSession` is built inside the FastAPI lifespan, th
    verifiers alive.
 3. **Time budget** — 3+ days, full scope.
 
-Plan approved and saved to `C:\Users\Paras Wadkar\.claude\plans\stateful-imagining-breeze.md`.
+Plan approved and saved to `the local plan file
 
 ---
 
@@ -787,7 +787,7 @@ load with a one-token generate, and confirmed:
 qwen3-vl:8b   6.2 GB   13%/87% CPU/GPU
 ```
 
-Back to the documented healthy state, exactly matching `CLAUDE.md`.
+Back to the documented healthy state, exactly matching `CONTEXT.md`.
 
 **Did — `preflight.py`, and it is the durable fix.** This evening cost four calibration
 runs to conditions that were invisible in the output: a wedged Ollama (blank rows that look
@@ -928,7 +928,7 @@ Adding `label`/`display_uom`/`order` to `AttributeSpec` changed `model_dump_json
 which changed `fingerprint()`, which changed the harvest cache key. Verified: needed
 `00f95d78b9373e4b`, disk had `449bb62e713e257f`. The next `crucible-app` launch would have
 spent **~25 minutes re-extracting before serving its first request** — precisely the trap
-`CLAUDE.md` documents and Entry 5 claimed to have closed. Entry 5's fix (scoping the key to
+`CONTEXT.md` documents and Entry 5 claimed to have closed. Entry 5's fix (scoping the key to
 used categories) was real but addressed a *different* failure; it does nothing when the
 fingerprint of the same category changes.
 
@@ -1582,7 +1582,7 @@ than left to be discovered.
 The new opening example is a real row from a real run, including its empty `Material` cell,
 because that cell is the product.
 
-### CLAUDE.md brought current
+### CONTEXT.md brought current
 
 Thesis section left alone; it is still accurate. Updated the pipeline shape (ingest → route
 → … → compose → emit), the key-module list, and the state section. Two corrections written
@@ -1648,7 +1648,7 @@ should be executed before it ships. The ones in there now have been. This one wa
 only because I ran it.
 
 **State.** **759 tests**, lint clean. Docs complete: README, SUBMISSION, RESULTS, guide,
-plan, WINNING-PLAN, CLAUDE, DIARY.
+plan, WINNING-PLAN, CONTEXT, DIARY.
 
 ---
 

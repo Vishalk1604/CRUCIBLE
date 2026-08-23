@@ -163,4 +163,4 @@ Stated here rather than discovered later:
 | [`guide.md`](guide.md) | The client's Solution Guide, transcribed |
 | [`WINNING-PLAN.md`](WINNING-PLAN.md) | What was built, in priority order, and why |
 | [`DIARY.md`](DIARY.md) | Append-only log — decisions, measurements, and wrong turns |
-| [`CLAUDE.md`](CLAUDE.md) | The non-negotiables |
+| [`CONTEXT.md`](CONTEXT.md) | The non-negotiables |

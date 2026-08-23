@@ -1,6 +1,6 @@
-# CRUCIBLE — context for Claude Code
+# CRUCIBLE — project context
 
-Read this before changing anything. It exists so a fresh session does not re-derive
+Read this before changing anything. It exists so a new contributor does not re-derive
 decisions that were already made, or undo them by accident.
 
 ## What this is

@@ -493,7 +493,7 @@ is brand-sponsored and consumer-electronics-weighted; it does not cover US build
 materials distribution. Keep `corpus/icecat.py` with a docstring recording the
 measurement — recording wrong turns is a stated habit of this project.
 
-### Step 6.2 — Update `README.md` and `CLAUDE.md`
+### Step 6.2 — Update `README.md` and `CONTEXT.md`
 New domain, new pipeline shape, the abstention thesis stated up front.
 
 ### Step 6.3 — Demo script
