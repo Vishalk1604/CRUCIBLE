@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crucible — certified product data</title>
+<meta name="description" content="Six input columns to a 252-column delivery sheet, with evidence for every value and a stated reason for every gap." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --primary:#1e40af; --accent:#b45309; --bg:#f8fafc; --fg:#14203f; --card:#fff;
+  --muted:#eef2f9; --muted-fg:#475569; --border:#d6e1f2; --ok:#15803d; --danger:#b91c1c;
+  --sans:"Fira Sans",system-ui,sans-serif; --mono:"Fira Code",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark) {
+  :root { --primary:#60a5fa; --accent:#fbbf24; --bg:#0b1220; --fg:#e8eefc; --card:#131c31;
+    --muted:#1a2438; --muted-fg:#9fb0cc; --border:#26334f; --ok:#4ade80; --danger:#f87171; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+h1{font-size:clamp(30px,5vw,44px);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font-size:clamp(20px,3vw,27px);margin:0 0 12px;letter-spacing:-.01em}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin:0 0 10px}
+.lede{font-size:18px;color:var(--muted-fg);max-width:64ch}
+.mono{font-family:var(--mono)}
+header{padding:64px 0 40px;border-bottom:1px solid var(--border)}
+section{padding:52px 0;border-bottom:1px solid var(--border)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:#fff;
+  text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:500;font-size:15px;min-height:44px}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+.figs{display:flex;gap:44px;flex-wrap:wrap;margin-top:34px}
+.fig .n{font-family:var(--mono);font-size:30px;font-weight:600}
+.fig .k{font-size:13px;color:var(--muted-fg);max-width:22ch}
+.banner{display:flex;gap:12px;background:color-mix(in srgb,var(--accent) 11%,var(--card));
+  border:1px solid color-mix(in srgb,var(--accent) 42%,var(--border));border-left-width:4px;
+  padding:14px 16px;border-radius:8px;font-size:14px;margin:22px 0}
+.proof{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.proof .h{padding:12px 16px;background:var(--muted);border-bottom:1px solid var(--border);
+  display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.proof .b{padding:16px}
+.sig{display:grid;grid-template-columns:172px 1fr;gap:12px;padding:8px 0;
+  border-bottom:1px dashed var(--border);font-size:14px;align-items:start}
+.sig:last-child{border-bottom:0}
+.sig .why{color:var(--muted-fg)}
+.tag{display:inline-flex;font-family:var(--mono);font-size:11.5px;padding:2px 8px;border-radius:11px;
+  border:1px solid var(--border);background:var(--muted);color:var(--muted-fg);white-space:nowrap}
+.tag.pass{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--border))}
+.tag.fail{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--border))}
+.tag.abstain{border-style:dashed;font-style:italic}
+.card{border:1px solid var(--border);border-radius:8px;background:var(--card);margin-bottom:10px}
+.card summary{padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center;flex-wrap:wrap;list-style:none}
+.card summary::-webkit-details-marker{display:none}
+.card summary:hover{background:var(--muted)}
+.card .sku{font-family:var(--mono);font-weight:600;font-size:14px}
+.card .src{color:var(--muted-fg);font-size:13px;flex:1 1 240px}
+.card .count{font-family:var(--mono);font-size:12px;color:var(--muted-fg)}
+.card .body{padding:0 16px 16px}
+.descs{margin-bottom:14px}
+.desc{display:grid;grid-template-columns:74px 1fr 58px;gap:10px;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.desc .k{color:var(--muted-fg);font-size:12px}
+.desc .len{font-family:var(--mono);font-size:11px;color:var(--muted-fg);text-align:right}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--border)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-fg)}
+.empty{color:var(--muted-fg);font-style:italic}
+.empty::before{content:"— ";font-style:normal}
+ul.classes{list-style:none;padding:0;columns:2;gap:26px;font-size:14px}
+ul.classes li{padding:3px 0}
+ul.classes .n{font-family:var(--mono);color:var(--primary);font-weight:600;margin-right:8px}
+footer{padding:34px 0;color:var(--muted-fg);font-size:13.5px}
+code{font-family:var(--mono);font-size:13px;background:var(--muted);padding:2px 6px;border-radius:4px}
+pre{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:13px}
+@media (max-width:700px){ul.classes{columns:1} .sig{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">UniHack · product data enrichment</p>
+    <h1>Every value carries its evidence.<br />Every gap is deliberate.</h1>
+    <p class="lede">
+      Crucible turns six columns of ERP shorthand into a 252-column delivery sheet — and then
+      does the part nobody else does: it marks what it could not establish, instead of filling
+      the cell with something plausible.
+    </p>
+    <div class="cta">
+      <a class="btn" href="delivery.csv" download>Download the delivery sheet (CSV)</a>
+      <a class="btn ghost" href="evidence.csv" download>Evidence sidecar</a>
+      <a class="btn ghost" href="https://github.com/paraswadkar/crucible">Source code</a>
+    </div>
+    <div class="figs">
+      <div class="fig"><div class="n">120</div><div class="k">products enriched from 6 input columns</div></div>
+      <div class="fig"><div class="n">61/252</div><div class="k">delivery columns carrying values</div></div>
+      <div class="fig"><div class="n">100%</div><div class="k">with all five description formats</div></div>
+      <div class="fig"><div class="n">97%</div><div class="k">classified into the taxonomy</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The argument</p>
+    <h2>Generation is solved. Knowing which tenth is wrong is not.</h2>
+    <p class="lede">
+      Frontier models already reach ~91% F1 on attribute extraction, and several vendors will
+      sell you enrichment with a confidence score attached. That score is the model's opinion of
+      its own work, and it runs highest exactly where the model is most certain and most wrong.
+      So distributors still check <strong>100%</strong> of records, and the automation saves nothing.
+    </p>
+    <p class="lede" style="margin-top:14px">
+      Crucible treats the model as an <strong>untrusted proposer</strong>. Six independent external
+      checks examine every value it produces, and only what survives is published.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Proof</p>
+    <h2>A real catch, from a real run</h2>
+    <p class="lede">A ball bearing. The model proposed <code>C4</code> as the seal type.</p>
+    <div class="proof" style="margin-top:22px">
+      <div class="h"><span class="mono" style="font-weight:600">BRG-00027</span>
+        <span style="color:var(--muted-fg);font-size:13px">bearing.ball · seal_type</span>
+        <span style="flex:1"></span><span class="tag">proposed <strong>C4</strong></span></div>
+      <div class="b">
+        <div class="sig"><span class="tag pass">ensemble 1.00</span><span class="why">Identical across 3 independent samples — the model agreed with itself every time.</span></div>
+        <div class="sig"><span class="tag pass">coherence 1.00</span><span class="why">“C4” appears in 10% of this category. Statistically, it looks completely normal.</span></div>
+        <div class="sig"><span class="tag abstain">dimensional abstained</span><span class="why">A nominal attribute, not a physical quantity. Nothing to check.</span></div>
+        <div class="sig"><span class="tag abstain">constraint abstained</span><span class="why">No constraint in this category mentions seal_type.</span></div>
+        <div class="sig"><span class="tag abstain">identity abstained</span><span class="why">Not an identity claim.</span></div>
+        <div class="sig"><span class="tag fail">vocabulary 0.00</span><span class="why"><strong>“C4” is not a term seal_type accepts.</strong> This category allows <code>open</code>, <code>2RS</code>, <code>RS</code>, <code>2Z</code>, <code>Z</code>.</span></div>
+        <p style="margin:16px 0 0;padding-top:14px;border-top:2px solid var(--border)">
+          <strong>C4 is a bearing clearance code, not a seal type.</strong> The model was consistent,
+          and consistently wrong. The statistical profile agreed with it. Only the check that knows
+          what this category actually sells caught it — <em>a model cannot correct an error it is
+          certain about.</em>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Real output</p>
+    <h2>8 products from the run, exactly as exported</h2>
+    <p class="lede">
+      Read the blanks. Where an attribute shows <em>not established</em>, that attribute applies
+      to the product and nothing in the source supported a value for it.
+    </p>
+    <div class="banner">
+      <span aria-hidden="true">▲</span>
+      <div>Every row below is read out of the actual delivery file linked at the top of this
+      page — including its empty cells. Nothing here is a mock-up.</div>
+    </div>
+    <details class="card">
+  <summary>
+    <span class="sku">DBD090094101F</span>
+    <span class="src">DBD090094101F Diablo 9&quot; - Metal Cut-Off Disc</span>
+    <span class="tag">Tools &amp; Equipment › Power Tool Accessories › Cut-Off &amp; Grinding Wheels</span>
+    <span class="count">4/8 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">CUT-OFF WHEEL 9IN METAL CUT-OFF 1</span><span class="len">33 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">Freud Inc, Cut-Off Wheel, DBD090094101F, 9 in Diameter, metal Application</span><span class="len">73 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">DBD090094101F Cut-Off Wheel, 9 in Diameter, metal Application, Cut-Off Wheel Type, 1 Quantity</span><span class="len">93 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Cut-Off Wheel, 9 in Diameter, metal Application, Cut-Off Wheel Type, 1 Quantity</span><span class="len">79 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Diameter</td><td class="mono">9</td><td class="mono">in</td></tr><tr><td>Thickness</td><td class="empty" colspan="2">not established</td></tr><tr><td>Arbor Size</td><td class="empty" colspan="2">not established</td></tr><tr><td>Application</td><td class="mono">metal</td><td class="mono"></td></tr><tr><td>Wheel Type</td><td class="mono">Cut-Off</td><td class="mono"></td></tr><tr><td>Abrasive</td><td class="empty" colspan="2">not established</td></tr><tr><td>Maximum Speed</td><td class="empty" colspan="2">not established</td></tr><tr><td>Quantity</td><td class="mono">1</td><td class="mono"></td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">KDFM404KPS</span>
+    <span class="src">KDFM404KPS Dishwasher SS</span>
+    <span class="tag">Appliances › Large Appliances › Major Kitchen &amp; Laundry Appliances</span>
+    <span class="count">4/10 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">DISHWASHER 404CF SS</span><span class="len">19 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">Appliance Dealers Cooperative, Dishwasher, KPS, KDFM404KPS, 404 CF Capacity</span><span class="len">75 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">KPS KDFM404KPS Dishwasher, 404 CF Capacity, SS</span><span class="len">46 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">KPS Dishwasher, 404 CF Capacity, SS</span><span class="len">35 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">dishwasher</td><td class="mono"></td></tr><tr><td>Series</td><td class="mono">KPS</td><td class="mono"></td></tr><tr><td>Capacity</td><td class="mono">404</td><td class="mono">CF</td></tr><tr><td>Voltage Rating</td><td class="empty" colspan="2">not established</td></tr><tr><td>Amperage Rating</td><td class="empty" colspan="2">not established</td></tr><tr><td>Width</td><td class="empty" colspan="2">not established</td></tr><tr><td>Mounting Type</td><td class="empty" colspan="2">not established</td></tr><tr><td>Fuel Type</td><td class="empty" colspan="2">not established</td></tr><tr><td>Sound Level</td><td class="empty" colspan="2">not established</td></tr><tr><td>Color</td><td class="mono">SS</td><td class="mono"></td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">543302126</span>
+    <span class="src">6&#x27; Wh Select T-Rail Kit Horiz - w/Sq Composite Balusters</span>
+    <span class="tag">Building Materials › Decking &amp; Railing › Railing Systems &amp; Components</span>
+    <span class="count">3/8 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">T-RAIL COMP KIT</span><span class="len">15 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">U S Lumber TREX, T-Rail, 543302126, composite, kit Assembly</span><span class="len">59 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">TREX 543302126 T-Rail, composite, kit Assembly</span><span class="len">46 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">T-Rail, composite, kit Assembly</span><span class="len">31 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">T-Rail</td><td class="mono"></td></tr><tr><td>Length</td><td class="empty" colspan="2">not established</td></tr><tr><td>Height</td><td class="empty" colspan="2">not established</td></tr><tr><td>Material</td><td class="mono">composite</td><td class="mono"></td></tr><tr><td>Baluster Style</td><td class="empty" colspan="2">not established</td></tr><tr><td>Orientation</td><td class="empty" colspan="2">not established</td></tr><tr><td>Color</td><td class="empty" colspan="2">not established</td></tr><tr><td>Assembly</td><td class="mono">kit</td><td class="mono"></td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">DCB518ASTS06G</span>
+    <span class="src">DCB518ASTS06G Diablo 1/2&quot;x18&quot; - Sanding Belt 6pc</span>
+    <span class="tag">Tools &amp; Equipment › Power Tool Accessories › Sanding Belts, Discs &amp; Sheets</span>
+    <span class="count">4/6 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">SANDING BELT 1/2&quot;X18&quot; 6PC</span><span class="len">25 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">Freud Inc Diablo, Sanding Belt, DCB518ASTS06G, 1/2&quot;x18&quot;, 6pc Quantity</span><span class="len">69 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">Diablo DCB518ASTS06G Sanding Belt, 1/2&quot;x18&quot;, 6pc Quantity</span><span class="len">57 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Sanding Belt, 1/2&quot;x18&quot;, 6pc Quantity</span><span class="len">36 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">Sanding Belt</td><td class="mono"></td></tr><tr><td>Brand</td><td class="mono">Diablo</td><td class="mono"></td></tr><tr><td>Material</td><td class="empty" colspan="2">not established</td></tr><tr><td>Color</td><td class="empty" colspan="2">not established</td></tr><tr><td>Size</td><td class="mono">1/2&quot;x18&quot;</td><td class="mono"></td></tr><tr><td>Quantity</td><td class="mono">6pc</td><td class="mono"></td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">ADB15516CS</span>
+    <span class="src">1x6-16&#x27; Coastline Sq Edge - Vintage Azek PVC Decking</span>
+    <span class="tag">Building Materials › Decking &amp; Railing › Composite &amp; PVC Decking</span>
+    <span class="count">9/9 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">COMPOSITE DECKING 1IN 6IN 16FT PVC AZEK</span><span class="len">39 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">Parksite TIMBERTECH, Composite Decking, ADB15516CS, 1 in Nominal Thickness</span><span class="len">74 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">TIMBERTECH ADB15516CS Composite Decking, 1 in Nominal Thickness, 6 in Nominal Width, 16 ft Length, PVC</span><span class="len">102 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Composite Decking, 1 in Nominal Thickness, 6 in Nominal Width, 16 ft Length, PVC, Sq Edge Edge Profile, Vintage</span><span class="len">111 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Nominal Thickness</td><td class="mono">1</td><td class="mono">in</td></tr><tr><td>Nominal Width</td><td class="mono">6</td><td class="mono">in</td></tr><tr><td>Length</td><td class="mono">16</td><td class="mono">ft</td></tr><tr><td>Material</td><td class="mono">PVC</td><td class="mono"></td></tr><tr><td>Edge Profile</td><td class="mono">Sq Edge</td><td class="mono"></td></tr><tr><td>Color</td><td class="mono">Vintage</td><td class="mono"></td></tr><tr><td>Collection</td><td class="mono">Coastline</td><td class="mono"></td></tr><tr><td>Board Type</td><td class="mono">Azek</td><td class="mono"></td></tr><tr><td>Surface</td><td class="mono">Vintage</td><td class="mono"></td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">D519127</span>
+    <span class="src">D519127 Heater Kit</span>
+    <span class="tag">unclassified</span>
+    <span class="count">1/6 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">HEATER KIT</span><span class="len">10 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">V &amp; V Appliance Parts Inc, Heater Kit, D519127</span><span class="len">46 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">D519127 Heater Kit</span><span class="len">18 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Heater Kit</span><span class="len">10 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">Heater Kit</td><td class="mono"></td></tr><tr><td>Brand</td><td class="empty" colspan="2">not established</td></tr><tr><td>Material</td><td class="empty" colspan="2">not established</td></tr><tr><td>Color</td><td class="empty" colspan="2">not established</td></tr><tr><td>Size</td><td class="empty" colspan="2">not established</td></tr><tr><td>Quantity</td><td class="empty" colspan="2">not established</td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">25-A</span>
+    <span class="src">Charcoal Black 25-A Mortar - Type N</span>
+    <span class="tag">Building Materials › Concrete &amp; Masonry › Mortar &amp; Grout</span>
+    <span class="count">3/6 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">MORTAR 25-A</span><span class="len">11 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">Rees Cast Stone Company, Mortar, 25-A, Charcoal Black, 25-A</span><span class="len">59 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">25-A Mortar, Charcoal Black, 25-A</span><span class="len">33 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Mortar, Charcoal Black, 25-A</span><span class="len">28 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">Mortar</td><td class="mono"></td></tr><tr><td>Brand</td><td class="empty" colspan="2">not established</td></tr><tr><td>Material</td><td class="empty" colspan="2">not established</td></tr><tr><td>Color</td><td class="mono">Charcoal Black</td><td class="mono"></td></tr><tr><td>Size</td><td class="mono">25-A</td><td class="mono"></td></tr><tr><td>Quantity</td><td class="empty" colspan="2">not established</td></tr></tbody></table>
+  </div>
+</details>
+<details class="card">
+  <summary>
+    <span class="sku">1700-1PK-BB40</span>
+    <span class="src">3/4x60&#x27; Vinyl Elect Tape</span>
+    <span class="tag">Building Materials › Adhesives &amp; Sealants › Tapes &amp; Flashing</span>
+    <span class="count">3/6 values</span>
+  </summary>
+  <div class="body">
+    <div class="descs"><div class="desc"><span class="k">Invoice</span><span class="v">VINYL ELECT TAPE VINYL 3/4X60&#x27;</span><span class="len">30 ch</span></div><div class="desc"><span class="k">Mobile</span><span class="v">3 M Co 3M, Vinyl Elect Tape, 1700-1PK-BB40, Vinyl, 3/4x60&#x27;</span><span class="len">58 ch</span></div><div class="desc"><span class="k">Short</span><span class="v">3M 1700-1PK-BB40 Vinyl Elect Tape, Vinyl, 3/4x60&#x27;</span><span class="len">49 ch</span></div><div class="desc"><span class="k">Retail</span><span class="v">Vinyl Elect Tape, Vinyl, 3/4x60&#x27;</span><span class="len">32 ch</span></div></div>
+    <table><thead><tr><th>Attribute</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody><tr><td>Product Name</td><td class="mono">Vinyl Elect Tape</td><td class="mono"></td></tr><tr><td>Brand</td><td class="empty" colspan="2">not established</td></tr><tr><td>Material</td><td class="mono">Vinyl</td><td class="mono"></td></tr><tr><td>Color</td><td class="empty" colspan="2">not established</td></tr><tr><td>Size</td><td class="mono">3/4x60&#x27;</td><td class="mono"></td></tr><tr><td>Quantity</td><td class="empty" colspan="2">not established</td></tr></tbody></table>
+  </div>
+</details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Coverage</p>
+    <h2>What the catalog turned out to contain</h2>
+    <ul class="classes"><li><span class="n">46</span> Cut-Off &amp; Grinding Wheels</li><li><span class="n">32</span> Major Kitchen &amp; Laundry Appliances</li><li><span class="n">15</span> Railing Systems &amp; Components</li><li><span class="n">12</span> Sanding Belts, Discs &amp; Sheets</li><li><span class="n">5</span> Composite &amp; PVC Decking</li><li><span class="n">4</span> (unclassified)</li><li><span class="n">4</span> Mortar &amp; Grout</li><li><span class="n">2</span> Tapes &amp; Flashing</li></ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Run it yourself</p>
+    <h2>Everything is local and offline</h2>
+    <p class="lede">
+      No API keys and no per-record cost. The model runs on your own machine, which for
+      unreleased pricing and specifications is the requirement rather than a convenience.
+    </p>
+<pre>uv sync --extra models --extra api --extra dev
+ollama pull qwen3-vl:8b
+
+uv run crucible enrich   --input "Unihack_ Sample Dataset - Input.csv" --out runs/demo
+uv run crucible evaluate --input "Unihack_ Sample Dataset - Input.csv" --limit 120
+uv run crucible-app      # the full product at http://127.0.0.1:8000</pre>
+    <p class="lede" style="margin-top:16px;font-size:15px">
+      This page is static because the live app needs a GPU holding a 6.2 GB model, which no free
+      hosting tier provides. What is published here is the evidence: the real rows, the real
+      verdicts, and the real files.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Crucible — built for UniHack. Generated from run <code>final</code>.
+    Figures on this page are counted from the delivery file itself.
+  </div>
+</footer>
+
+</body>
+</html>

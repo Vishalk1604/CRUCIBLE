@@ -72,6 +72,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # API, and the values are immutable markers rather than the shared mutable defaults B008
 # is about.
 "src/crucible/api/app.py" = ["B008"]
+# The static-site builder embeds an HTML template as a string literal. Wrapping markup to
+# 100 columns would make it less readable, not more, and it is not Python being read.
+"tools/build_static_site.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
