@@ -159,8 +159,6 @@ Stated here rather than discovered later:
 
 | | |
 |---|---|
+| [`SUBMISSION.md`](SUBMISSION.md) | The submission narrative — what it does and what it refuses to do |
 | [`docs/RESULTS.md`](docs/RESULTS.md) | Every measured number, with its command and caveat |
-| [`guide.md`](guide.md) | The client's Solution Guide, transcribed |
-| [`WINNING-PLAN.md`](WINNING-PLAN.md) | What was built, in priority order, and why |
-| [`DIARY.md`](DIARY.md) | Append-only log — decisions, measurements, and wrong turns |
-| [`CONTEXT.md`](CONTEXT.md) | The non-negotiables |
+| [`submission/`](submission/) | The deliverables: 252-column sheet, evidence sidecar, prototype deck |

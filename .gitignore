@@ -50,5 +50,17 @@ Thumbs.db
 # Kept locally as evidence, not worth 1.3 MB in history.
 daily.index.xml.gz
 
-# Presenter notes - local only.
+# Working notes kept on disk but out of the repo. The judge-facing documents are
+# README.md, SUBMISSION.md and docs/RESULTS.md; these are the workings behind them.
 DEMO-SCRIPT.md
+CONTEXT.md
+DEPLOY.md
+DIARY.md
+START-HERE.md
+WINNING-PLAN.md
+guide.md
+plan.md
+docs/HANDOFF.md
+
+# The organisers' template, kept locally as the source for the built deck.
+\[EXT\] UniHack-Protoype Template*.pptx
