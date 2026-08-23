@@ -1,0 +1,121 @@
+# Lighting fixtures — 71 rows.
+#
+#     65-771R3 Nuvo Highbay Light
+#     45297BK Kichler Wall Lt
+#     3' Strip Light Ext
+#
+# Distinct from lamp.led on purpose. A fixture is the housing and a lamp is the light
+# source, and the router keeps them apart with "highbay"/"chandelier"/"pendant" as decisive
+# terms against lamp.led's shape codes. They share wattage and colour temperature as
+# attributes, which is exactly why the categories need separating: the same number means a
+# different product depending on which it belongs to.
+#
+# Descriptions here are the thinnest in the catalog — "Kichler Wall Lt" is four words and
+# two of them are the brand. Expect most attributes to abstain, and expect the export to
+# show labels with empty values. That is the honest outcome for a description that carries
+# almost nothing.
+
+category_id: luminaire.fixture
+name: Lighting Fixtures
+unspsc: "39111500"
+
+attributes:
+  - name: fixture_type
+    kind: nominal
+    label: Product Name
+    order: 1
+    required: true
+    vocabulary:
+      - high bay
+      - wall sconce
+      - bath light
+      - vanity light
+      - pendant
+      - chandelier
+      - ceiling flush mount
+      - strip light
+      - troffer
+      - downlight
+      - landscape light
+      - flood light
+
+  - name: wattage
+    kind: quantity
+    dimension: "[power]"
+    canonical_unit: watt
+    display_uom: W
+    label: Wattage
+    order: 2
+
+  - name: colour_temperature
+    kind: quantity
+    dimension: "[temperature]"
+    canonical_unit: kelvin
+    display_uom: K
+    label: Color Temperature
+    order: 3
+    description: Written as trade shorthand ("27k", "50k") exactly as in lamp.led.
+
+  - name: lumens
+    kind: quantity
+    dimension: "[luminous_flux]"
+    canonical_unit: lumen
+    display_uom: lm
+    label: Light Output
+    order: 4
+
+  - name: length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: ft
+    label: Length
+    order: 5
+    description: Nominal length for linear fixtures — "3' Strip Light", "4' Led Strip".
+
+  - name: mounting_type
+    kind: nominal
+    label: Mounting Type
+    order: 6
+    required: true
+    vocabulary:
+      - wall mount
+      - ceiling mount
+      - suspended
+      - recessed
+      - surface mount
+      - post mount
+
+  - name: finish
+    kind: text
+    label: Finish
+    order: 7
+    description: >
+      Free text rather than a vocabulary. Fixture finishes are a marketing palette
+      ("Olde Bronze", "Brushed Nickel", "Textured Black") that changes per collection, the
+      same reason deck board colours are free text.
+
+  - name: location_rating
+    kind: nominal
+    label: Location Rating
+    order: 8
+    vocabulary:
+      - dry location
+      - damp location
+      - wet location
+
+  - name: voltage_rating
+    kind: quantity
+    dimension: "[electric_potential]"
+    canonical_unit: volt
+    display_uom: V
+    label: Voltage Rating
+    order: 9
+
+constraints:
+  - wattage > 0
+  - lumens > 0
+  - colour_temperature >= 1500
+  - colour_temperature <= 8000
+  - voltage_rating > 0
+  - length > 0

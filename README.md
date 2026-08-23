@@ -1,152 +1,166 @@
-# CRUCIBLE
+# Crucible
 
-**Certified product data enrichment for industrial catalogs — AI-generated attributes with a guaranteed error rate.**
+**Product data enrichment that tells you which values it could not stand behind.**
 
-> Everyone can generate product data. Nobody can prove it's right.
+> Generation is solved. Knowing which tenth is wrong is not.
 
-Crucible takes the messy shorthand that actually sits in a distributor's ERP, enriches it into
-structured commerce-ready product data, and then does the part no one else does: it **proves how
-wrong it might be**, with a statistical guarantee you could put in a contract.
+Crucible takes the shorthand that actually sits in a distributor's ERP — a part number, a
+35-character description, three brand columns that are usually placeholders — and produces a
+252-column, commerce-ready delivery sheet. Then it does the part nobody else does: it marks
+what it could not establish, and shows the evidence for everything it could.
 
-```
-Maximum acceptable error rate:  [ 2.0% ▾ ]
-
-  ✔ Auto-publishing 9,724 of 12,400 attribute values  (78.4%)
-    Certified ≤2.0% error at 95% statistical confidence
-  ⚑ 2,676 routed to review, ranked by revenue impact
-```
-
-Drag the dial to 5% and automation climbs. Drag it to 0.5% and it falls. Risk becomes a business
-lever instead of a vibe.
+Built for **UniHack**, run by **Unilog**. Runs entirely offline on one laptop GPU.
 
 ---
 
-## Why this exists
+## The one-paragraph argument
 
-Frontier models already reach ~91% F1 on product attribute extraction. Generation is a solved,
-commoditized problem. The unsolved half is that **nobody can tell which 9–15% is wrong** — so
-distributors still pay people to check 100% of records, and the automation saves nothing.
+Frontier models already reach ~91% F1 on product attribute extraction, and several vendors
+will sell you enrichment with a confidence score attached. That score is the model's opinion
+of its own work, and it runs highest exactly where the model is most certain and most wrong.
+So distributors still pay people to check **100%** of records, and the automation saves
+nothing. Crucible treats the model as an **untrusted proposer**: every value it produces is
+examined by six independent external checks, and only what survives is published.
 
-A catalog that is 95% accurate with errors distributed randomly and invisibly is not a catalog
-anyone will sign off on.
+The client's own guide says the same thing from the other side:
 
-Two things that don't fix it, both established in the literature:
+> *"Noticing and reporting such gaps is a strength, not a failure; a confidence score or a
+> 'needs human review' flag is a genuinely valuable feature."*
 
-- **LLM confidence scores are miscalibrated.** A softmax probability is not a reliability estimate.
-- **Self-correction doesn't work unaided.** LLMs struggle to correct themselves without external
-  feedback from real tools — a finding reported by the same group that built the leading product
-  attribute extraction benchmarks.
+---
 
-So Crucible treats the model as an **untrusted proposer** and puts real, external verification
-behind it.
-
-## How it works
-
-```
- ERP junk ──▶ RESOLVE ──▶ EXTRACT ──▶ ASSAY ──▶ CERTIFY ──┬──▶ EMIT ──▶ PIM / search / agents
-              identity    grounded,   5 external  conformal │
-              + evidence  constrained verifiers   risk ctrl │
-                                                            └──▶ ESCALATE ──▶ human ──▶ LoRA
-```
-
-Input is deliberately industrial, not e-commerce:
-
-```
-HX CAP SCR 3/8-16X1 GR5 ZP
-1/2 SS BALL VLV 600WOG SCRD
-BRG BALL 6205-2RS C3
-```
-
-**1. Resolve** — expand trade shorthand, resolve brand and manufacturer part number, harvest
-evidence (spec PDFs, product pages, images). Everything downstream must cite one of these.
-
-**2. Extract** — a local vision-language model reads text *and rendered spec-sheet pages*.
-Grammar-constrained decoding makes output always schema-valid. Every value must emit a source
-span; a value with no span is born untrusted.
-
-**3. Assay** — five independent external verifiers, the external tool feedback the research says
-is missing:
-
-| Verifier | Catches |
-|---|---|
-| Evidence entailment | fabricated values not supported by the cited span |
-| Dimensional algebra | unit hallucination and bad conversions — kills *"thread pitch: 4.2 kg"* |
-| Constraint solver | physically impossible SKUs (`bore ≤ body_diameter`) |
-| Catalog coherence | silent statistical outliers against category distributions |
-| Ensemble disagreement | genuinely ambiguous cases |
-
-**4. Certify** — the five signals feed a calibrated nonconformity score, and conformal risk control
-picks a threshold so the realized error rate among auto-accepted values stays at or below your
-chosen α with 95% confidence. Output carries a signed data certificate with full provenance.
-
-**5. Escalate** — everything below threshold goes to a stronger model, then to a human queue
-ranked by risk × revenue impact. Corrections become training data.
-
-**6. Emit** — PIM-ready export, ETIM/UNSPSC codes, JSON-LD, and an MCP endpoint so AI shopping
-agents can query the catalog. Marketing copy is generated only from certified attributes, so the
-copy inherits the guarantee.
-
-## Design constraints
-
-Runs entirely on a laptop: **8 GB VRAM**, local-first inference, with hosted models used only as
-an escalation tier behind a swappable interface. A million-SKU catalog should cost dollars, and
-the data never has to leave the building.
-
-## Running it
-
-Everything runs locally. You need [Ollama](https://ollama.com) and the extractor model:
+## What it actually does
 
 ```bash
-ollama pull qwen3-vl:8b
+uv run crucible enrich --input "Unihack_ Sample Dataset - Input.csv" --out runs/demo
 ```
 
-Then install and launch the app:
+Input — six columns, 35 characters of description:
 
-```bash
-uv sync --extra models --extra api --extra dev
+```
+DCB518ASTS06G | DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc | -- Unbranded -- | ...
 ```
 
-```bash
-uv run crucible-app
+Output — 61 of 252 columns populated, including all five description formats at their
+required lengths and casings:
+
+```
+Dept / Class / Fine   Tools & Equipment / Power Tool Accessories / Sanding Belts
+SHORT_DESC            Diablo DCB518ASTS06G Sanding Belt, 1/2"x18", 6pc Quantity
+INVOICE_DESC          SANDING BELT 1/2"X18" 6PC              (25 chars, ≤40, CAPS)
+MOBILE_DESC           Freud Inc Diablo, Sanding Belt, DCB518ASTS06G, 1/2"x18"   (69 chars)
+ATTRIBUTE_LABEL 3     Material
+ATTRIBUTE_VALUE 3     ← empty, on purpose
 ```
 
-Open http://127.0.0.1:8000. The first launch extracts the corpus with the local model
-(around 20 minutes for 600 products on an 8 GB GPU) and caches the result; later launches
-load instantly.
+**That empty cell is the product.** The attribute applies to this class and nothing in the
+source supported a value for it. Every other tool fills it.
 
-## Results so far
+---
 
-Certified against a local Qwen3-VL-8B's **own** extraction errors — not injected faults —
-on a 600-product generated corpus. Unverified, that extraction is 30.3% wrong.
+## Measured, not claimed
 
-| Requested α | Automation | Certified bound | Realised error |
-|---|---|---|---|
-| 3% | refused | — | — |
-| 5% | 9.0% | 4.31% | 0.00% |
-| 7% | 18.7% | 3.19% | 1.22% |
-| 10% | 65.5% | 8.33% | 6.28% |
-
-Every promise holds, and where the evidence cannot support one the system refuses instead
-of issuing it. Scorer AUROC is 0.928 across four verifiers.
-
-The corpus is synthetic and the numbers demonstrate the method rather than performance on
-a real catalog. The known limitation, its measured cause, and what fixes it are in
-[`docs/RESULTS.md`](docs/RESULTS.md).
-
-## Documentation
+Full detail and reproduction commands in [`docs/RESULTS.md`](docs/RESULTS.md).
 
 | | |
 |---|---|
-| [`CLAUDE.md`](CLAUDE.md) | Project thesis, non-negotiables, and traps that already cost time |
-| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Install, run, current state, prioritised next steps |
-| [`docs/RESULTS.md`](docs/RESULTS.md) | Measured numbers, verifier ablation, and honest caveats |
+| Columns populated | **61 / 252** on 120 products |
+| Descriptions produced | 120 / 120 |
+| `INVOICE_DESC` ≤ 40 chars, upper case | **100%** |
+| Unit spacing (`24 in`, never `24in`) | **100%** |
+| Controlled-vocabulary compliance | **76%** (from 43%, after fixing our own lists) |
+| Throughput | 1.14 s/product · ≈19 min per 1,000 |
+| Empty or unparseable model responses | **0** |
 
-## Status
+On 150 real products with six verifiers, realised error on published values falls from
+**12.3% → 3.2%**. The certified *bound* at that setting is loose (12.5%) — a sample-size
+limit, stated plainly rather than rounded away.
 
-Working end to end: extraction, verification, fusion, certification, and a local web app
-with the risk dial. The corpus is generated; replacing it with real catalog data is the
-next priority.
+---
 
-## License
+## The catch that makes the argument
 
-MIT
+From the live review queue. A ball bearing; the model proposed `seal_type = C4`:
+
+```
+ensemble     1.00   identical across 3 independent samples
+coherence    1.00   'C4' appears in 10% of this category
+dimensional  abstained    nominal attribute, nothing to check
+constraint   abstained    no constraint mentions seal_type
+identity     abstained    not an identity claim
+vocabulary   0.00   'C4' is not a term seal_type accepts
+```
+
+C4 is a bearing **clearance** code, not a seal type. The model agreed with itself three times
+out of three; the statistical profile said it looked normal. Both were confidently wrong.
+Only the check that knows what the category actually sells caught it.
+
+*A model cannot correct an error it is certain about. Something outside the model has to.*
+
+---
+
+## Why the descriptions can be trusted
+
+The five description fields are **deterministic templates over already-verified values**, not
+model output. There is no path in the code from source text to output prose that does not go
+through a verified value, so:
+
+> **A composed description cannot contain a fact that was not verified.**
+
+Not *unlikely to* — cannot. `tests/test_compose.py::test_no_clause_is_unverified` asserts it.
+Against the guide's warning that *"a fluent description made of invented values scores zero"*,
+that is the strongest available answer.
+
+`MARKETING_DESCRIPTION` is deliberately left empty: it is genuine manufacturer copy and
+cannot be derived from six input columns.
+
+---
+
+## Running it
+
+```bash
+uv sync --extra models --extra api --extra dev
+ollama pull qwen3-vl:8b
+
+uv run crucible enrich   --input "Unihack_ Sample Dataset - Input.csv" --out runs/demo
+uv run crucible evaluate --input "Unihack_ Sample Dataset - Input.csv" --limit 120
+uv run crucible-app                        # http://127.0.0.1:8000
+uv run pytest -q                           # 759 tests
+```
+
+The web app is a product, not a dashboard: a landing page, a workspace, drag-and-drop upload,
+live per-product progress, and four downloads — delivery sheet (XLSX and CSV), the evidence
+sidecar, and the live guarantee.
+
+⚠️ Extraction needs the model resident on the GPU. `preflight.py` checks placement before
+every run and refuses if Ollama has fallen back to CPU, because that failure is silent and
+costs 3.5× throughput with no error message.
+
+---
+
+## What this does not do
+
+Stated here rather than discovered later:
+
+- **No image or document retrieval.** `Product Image`, `Specification Sheet` and the URL
+  columns stay empty. The naming convention is obvious enough to synthesise, and a filename
+  is a claim that a file exists. Eleven such columns are pinned closed by a test.
+- **No distributor-internal identifiers.** `PART_NUMBER` and `SKU - MY_PART_NUMBER` are not
+  in the input under any name.
+- **Vocabulary compliance is against our own lists**, not the client's 161,000-row LOV, which
+  was not published with the sample pack. Never described as "LOV compliance".
+- **Calibration labels come from injected faults** over the system's own clean extraction,
+  because the 200-row answer key was not published either. Every artifact from that path is
+  labelled SIMULATED, and the label noise runs in the conservative direction.
+
+---
+
+## Documents
+
+| | |
+|---|---|
+| [`docs/RESULTS.md`](docs/RESULTS.md) | Every measured number, with its command and caveat |
+| [`guide.md`](guide.md) | The client's Solution Guide, transcribed |
+| [`WINNING-PLAN.md`](WINNING-PLAN.md) | What was built, in priority order, and why |
+| [`DIARY.md`](DIARY.md) | Append-only log — decisions, measurements, and wrong turns |
+| [`CLAUDE.md`](CLAUDE.md) | The non-negotiables |

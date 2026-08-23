@@ -1,116 +1,289 @@
 # Results
 
-All figures below come from a **generated corpus**, not a real catalog. What is real is
-the error distribution: a local Qwen3-VL-8B extracted every value and these are its own
-mistakes, not injected faults. Read every number as evidence that the method works, not
-as a claim about performance on a distributor's data.
+Every number here was measured on this machine and is reproducible with the command shown
+beside it. Where a figure rests on a small sample or a substitute for data we were not
+given, the caveat sits next to the number rather than in a footnote.
 
-Reproduce with `crucible-app` (see the README), or:
+Hardware: RTX 5070 Laptop, 8.15 GB VRAM. Model: `qwen3-vl:8b` (6.2 GB), local Ollama, fully
+offline.
 
-```bash
-uv run python -c "from crucible.api.session import CertificationSession; print(CertificationSession(n_per_category=200).stats())"
-```
+---
 
-## Setup
+## 1. The input
 
 | | |
 |---|---|
-| Corpus | 600 generated products across 3 categories (ball valves, hex cap screws, ball bearings) |
-| Extractor | Qwen3-VL-8B, local, grammar-constrained JSON, thinking disabled |
-| Extraction cost | 1370.8 s for 600 products — 2.3 s/product on an 8 GB RTX 5060 |
-| Extraction health | 3053 of 3422 proposed values grounded; **0 empty, 0 unparseable** |
-| Resampling | 2 further passes at temperature 0.7, ~18 min each, for the ensemble verifier |
-| Scorable values | 2627, split 876 fit / 876 calibrate / 875 test |
-| Verifiers | dimensional, constraint, coherence, ensemble |
-| Confidence | 95% (δ = 0.05) |
+| Products | 1,000 |
+| Input columns | 6 — `Mfg_Part_Num`, `Part_Desc`, `E1_Brand`, `Unilog_Brand`, `DIB_Brand`, `Part_Manuf` |
+| Description length | 13–70 chars, median **35** |
+| `Unilog_Brand` usable | **0 / 1000** — placeholder on every row |
+| `E1_Brand` usable | 197 / 1000 |
+| `DIB_Brand` usable | 245 / 1000 |
+| Descriptions containing their own part number | **699 / 1000** |
 
-## The guarantee holds
+That last row is not trivia. It is a second, independently populated channel carrying the
+same fact, and it is what the identity verifier checks against.
 
-Unverified, the extraction is **30.3% wrong**. Scorer AUROC on held-out data is **0.928**.
+(An earlier note in `DIARY.md` records this as 676; that count used a stricter
+normalisation. 699 is the figure under the comparison the verifier actually performs.)
 
-| Requested α | Automation | Certified bound | Realised error | Verdict |
-|---|---|---|---|---|
-| 0.5% | refused | — | — | cannot certify |
-| 1.0% | refused | — | — | cannot certify |
-| 2.0% | refused | — | — | cannot certify |
-| 3.0% | refused | — | — | cannot certify |
-| 5.0% | 9.0% | 4.31% | 0.00% | holds |
-| 7.0% | 18.7% | 3.19% | 1.22% | holds |
-| 10.0% | 65.5% | 8.33% | 6.28% | holds |
-| 15.0% | 65.5% | 8.33% | 6.28% | holds |
+---
 
-No promise is broken at any level. Where the evidence cannot support a promise the system
-refuses rather than issuing one it cannot keep, which is what makes the rest of the table
-worth anything.
+## 2. Output coverage
 
-## Verifier ablation
+```bash
+uv run crucible enrich --input "Unihack_ Sample Dataset - Input.csv" --out runs/demo --limit 120
+```
 
-| Suite | AUROC | Distinct scores | Automation @ 10% |
-|---|---|---|---|
-| dimensional + constraint | 0.883 | — | — |
-| + coherence | 0.910 | 12 | 16.8% |
-| + ensemble | **0.928** | **37** | **65.5%** |
+| Stage | Columns carrying a value |
+|---|---|
+| Identity, taxonomy, attribute grid only | 25 / 252 |
+| \+ description composers | 41 / 252 |
+| \+ commerce columns | **61 / 252** |
 
-**Coherence** looked like padding at +0.002 AUROC on a 45-product pilot. At 600 products it
-is worth +0.027, because most attributes finally clear the sample floor below which it
-correctly abstains rather than guessing. It is high-precision and low-recall — applicable
-on 99.7% of values but returning full trust on 97.6% of them — so it earns its keep
-entirely from the 2.4% it objects to.
+On 120 products: all five descriptions populate **120/120**. `ITEM_FEATURES_1` 70/120,
+`Application` 44/120, `Selling Qty` 37/120.
 
-**Ensemble** was built to fix resolution rather than accuracy, and it did. Before it, three
-verifiers each emitting about three discrete trust levels produced only 13 distinct signal
-patterns across 2627 values, one of which covered 43.5% of them. A threshold had roughly
-twelve places to sit, so the risk-coverage frontier was a coarse staircase and most of the
-dial selected the same threshold. Scoring agreement as mean pairwise similarity rather
-than exact match took distinct scores from 12 to 37 — the staircase broke, α of 5%, 7% and
-10% now select genuinely different thresholds, and automation at 10% rose from 16.8% to
-65.5%.
+**The remaining 191 columns are not a backlog.** They divide into three groups:
 
-It was a trade, not a free improvement, and the cost belongs on the record. **α=3%
-previously certified 16.8% automation and now refuses.** The new signal reshuffled the
-ordering and shrank the very clean subset at the strict end. A large gain across the
-usable range against a loss at one setting is worth taking, but it was paid for.
+- **Cannot be derived from six input columns** — `UPC`, `EAN`, `GTIN`, `Country Of Origin`,
+  `Warranty`, `Standard/Approvals`. These come from manufacturer documentation.
+- **Distributor-internal** — `PART_NUMBER`, `SKU - MY_PART_NUMBER`. Not present in the input
+  under any name.
+- **Assets we hold none of** — `Product Image`, `Alternate Image 1..4`,
+  `Specification Sheet`, `MFR URL`, `Ref URL 1..5`.
 
-## Why 2% is out of reach, precisely
+That last group was the tempting one. The reference rows fill `Product Image` with
+`FRIGIDAIRE_PDSH4816AF.jpg`; the convention is plainly `{BRAND}_{MPN}.jpg` and seven columns
+could be synthesised for every product in about a minute. **A filename is a claim that a
+file exists.** We hold no images, so emitting one would be a confidently-formatted assertion
+about something nobody looked for. `tests/test_commerce.py::TestRefusals` pins eleven such
+columns closed so a later "coverage improvement" fails a test and reads the reason.
 
-The strict end is bounded by **calibration sample size, not by the verifiers**.
+### On unseen data
 
-Sorting the calibration split cleanest-first:
+A deliberately hostile catalog — different column names entirely, empty and whitespace-only
+descriptions, a 400-character description, embedded quotes, Unicode, and categories absent
+from the sample:
 
-| Accepted | Errors | Clopper-Pearson upper bound |
+| | before taxonomy expansion | after |
 |---|---|---|
-| 50 | 0 | 5.82% |
-| 100 | 1 | 4.66% |
-| 150 | 1 | 3.12% |
-| 200 | 7 | 6.47% |
+| products routed to a category | 1 / 10 | **5 / 10** |
+| columns populated | 37 | **40** |
+| crashes | 0 | 0 |
 
-Certifying 2% with zero observed errors requires at least **149 accepted values**
-(`log 0.05 / log 0.98`). The cleanest 149 in this split contain **exactly one error**,
-which lifts the bound to about 3.1%.
+The five that remain generic are correct: two empty descriptions, a 400-character string, a
+bare "Widget", and a Japanese description. Nothing was invented for any of them.
 
-So 2% is missed by a single value. No verifier fixes this: with 876 calibration values the
-binomial bound cannot tighten further at any threshold. Roughly three times the data at
-the same clean proportion would put the bound near 1.3%.
+⚠️ Expect richness to fall toward the generic six attributes on a genuinely unfamiliar
+catalog while structure and honesty hold. That is the designed failure mode.
 
-That redirects the next step. More calibration data is worth more than a fifth verifier,
-which is what makes the Icecat ingestion the highest-value remaining work rather than
-entailment.
+---
 
-## Notes against over-reading these numbers
+## 3. The three metrics the client's guide names
 
-**The corpus is synthetic.** Descriptions are assembled from code tables. Real distributor
-data is messier, less consistent, and full of vendor-specific shorthand no table covers.
+> *"Field-level accuracy against the 200 known-good rows, character-limit compliance, and
+> percentage of values found in the LOV are all simple, credible metrics. Judges will look
+> for them."*
 
-**Rules are disabled for these runs.** With the rule extractor enabled first, as the
-production cascade intends, the error rate on this corpus is 0% — rules win every
-contested attribute and are perfect here by construction. That is the circularity
-described in `extract/rules.py`, not a result. Calibration reads the model-only path so
-the labels are real.
+```bash
+uv run crucible evaluate --input "Unihack_ Sample Dataset - Input.csv" --limit 120
+```
 
-**Realised error of 0.00% at α=5% is a small-sample artifact.** Only 79 test values are
-auto-published there; observing zero errors among them is consistent with a true rate
-anywhere below roughly 4%, which is what the 4.31% bound reports.
+### Character-limit compliance — the strongest of the three
 
-**α=10% and α=15% give identical results.** Both select the same threshold — the frontier
-is finer than it was but still not continuous, and there is nothing between those two
-settings for it to choose.
+Needs no answer key, runs at any scale, means exactly what it says. Over 120 products:
+
+| Check | Result |
+|---|---|
+| `INVOICE_DESC` ≤ 40 chars | **120/120 = 100%** |
+| `INVOICE_DESC` upper case | **120/120 = 100%** |
+| `SHORT_DESC` spaces its units | **120/120 = 100%** |
+| `LONG_DESC1` spaces its units | **120/120 = 100%** |
+| `RETAIL_DESC` spaces its units | **120/120 = 100%** |
+| `MOBILE_DESC` 60–80 chars | 92/120 = **77%** |
+
+The 77% is a real limitation and not a defect. Sparse inputs cannot always reach a
+60-character floor, and the composer **refuses to pad**. Inventing words to hit a character
+count is precisely what the guide says scores zero.
+
+### Controlled-vocabulary compliance
+
+**163 / 207 nominal values = 79%**, improved from 43% (see §6).
+
+⚠️ Measured against the per-category vocabularies **this project authors**, not the client's
+161,000-row LOV, which was not published with the sample pack. This is deliberately *not*
+called "LOV compliance": asserting conformance to a standard we have never seen is the one
+move the guide says scores zero. A test asserts that phrase never appears in the report.
+
+### Field-level accuracy
+
+**40% exact over 2 labelled rows.** The pack we received contains 2 fully enriched rows,
+not 200.
+
+| Result | Columns |
+|---|---|
+| 2/2 | `Mfg_Part_Num`, `MANUFACTURER_PART_NUMBER`, `Part_Desc`, `Dept`, `Class`, `Product Name` |
+| 0/2 | `BRAND_NAME`, `MANUFACTURER_NAME` — needs the 27k manufacturer list |
+| 0/2 | `Fine`, `Classpath` — our taxonomy labels differ from theirs |
+| 0/2 | all five descriptions — structure matches, attribute *selection* differs |
+
+⚠️ **Two rows is a worked example, not a sample.** It can show a field is built the right
+*way*; it cannot show how often that is true. `Accuracy.is_indicative` is False below ten
+rows and the report prints `over 2 labelled row(s)` beside every percentage, with a caveat
+line. A metric that hides its own sample size is worse than no metric.
+
+---
+
+## 4. Verification
+
+Six verifiers. Each may pass, fail, doubt, or **abstain** — and abstention is a distinct
+feature in the scorer, never folded into mild approval.
+
+| Verifier | Checks |
+|---|---|
+| dimensional | unit algebra via pint |
+| constraint | cross-attribute physical relationships |
+| vocabulary | membership of the category's controlled vocabulary |
+| identity | part number against the description's redundant copy |
+| coherence | value against the catalog's own distribution |
+| ensemble | agreement across resampled extractions |
+
+### The catch that makes the argument
+
+Live from the review queue, `BRG-00027`, proposed `seal_type = C4`:
+
+```
+ensemble     1.00   identical across 3 samples
+coherence    1.00   'C4' appears in 10% of this category
+dimensional  abstained
+constraint   abstained
+identity     abstained
+vocabulary   0.00   'C4' is not a term seal_type accepts
+```
+
+C4 is a bearing *clearance* code, not a seal type. **The model agreed with itself three
+times out of three and the statistical profile said it looked normal. Both were confidently
+wrong.** Only the check that knows what the category actually sells caught it — which is
+the whole argument for external tools over model self-critique, demonstrated rather than
+asserted.
+
+---
+
+## 5. Certification on the real catalog
+
+```bash
+uv run python -c "from crucible.api.source import CatalogSource; ..."
+```
+
+150 real products, six verifiers, labels from fault injection over a pseudo-reference:
+
+| | |
+|---|---|
+| Scorable values | 708 |
+| Scorer AUROC | **0.662** |
+| Unverified error | 12.3% |
+| α = 15% | feasible — 26.7% automated, realised error **3.17%** |
+| α = 25% | feasible — 76.3% automated, realised error 9.44% |
+| α ≤ 10% | **refuses to certify** |
+
+Realised error on published values falls from **12.3% → 3.2%**, a 4× improvement.
+
+⚠️ Three caveats, all load-bearing:
+
+1. **The certified *bound* is loose** at this sample size — 12.5% at α=15%, barely under the
+   12.3% baseline. That is a binomial-sample-size limit, not a verifier limit. More labelled
+   data tightens it; a fifth verifier does not.
+2. **Labels come from injected faults over the system's own clean extraction**, because the
+   200-row answer key was not published. The noise is one-directional: it *deflates* AUROC
+   and *inflates* realised error. It cannot manufacture a guarantee that does not hold.
+3. Every artifact from this path is labelled **SIMULATED**.
+
+---
+
+## 6. Ablations and negative results
+
+### Icecat is useless for this catalog — 0/999
+
+Scanned all 28,547 entries of `daily.index.xml.gz` against 999 distinct part numbers.
+**Zero real matches.** The two apparent hits (`52655`, `25762`) are a Hunter ceiling fan and
+a mason line colliding with numeric ids in what is largely a printer-supplies index. Open
+Icecat is brand-sponsored and consumer-electronics-weighted; it does not cover US
+building-materials distribution. `HANDOFF.md` had this as priority 1.
+
+### Verifier coverage, not verifier quality, was the binding constraint
+
+First real-catalog run: **AUROC 0.532** — a coin flip. Applicability measured over 772
+values:
+
+| verifier | applied to |
+|---|---|
+| dimensional | 37.8% |
+| constraint | 37.7% |
+| identity | 5.7% |
+
+**~62% of values received no verifier opinion at all**, so their feature vector was all
+zeros and the scorer had nothing to separate them with. The synthetic corpus was
+quantity-heavy *by construction*; a real building-products catalog is dominated by nominal
+attributes, and both physical verifiers correctly abstain on every one.
+
+Adding the vocabulary verifier: coverage **38% → 88%**, AUROC **0.532 → 0.599**.
+Necessary, and not sufficient — on this domain the signals are genuinely weaker, not merely
+absent.
+
+### A vocabulary the data never uses is a filter that rejects everything
+
+`wheel_type` held ISO type codes (`type 1 flat`, `type 27 depressed center`) and matched
+**0 of 38** real values, because this catalog writes "Cut Off", "Grinding", "Dual Metal".
+Rewriting it from measurement, plus trade-abbreviation synonyms (`Alm`, `Rnd`, `SS`, `Wh`)
+and whole-word containment matching (`Metal Cut-Off` → `cut-off`), moved compliance
+**43% → 79%**. The verifier had been working perfectly against a wrong
+list — invisible without a compliance metric.
+
+### Concurrency: 1.09× ceiling, and the cause is VRAM
+
+| workers | default server | `OLLAMA_NUM_PARALLEL=2` |
+|---|---|---|
+| 1 | 49.9s | 50.4s |
+| 2 | 45.6s (1.09×) | 46.2s (1.09×) |
+| 4 | 45.7s (1.09×) | 46.2s (1.09×) |
+| 8 | 45.6s (1.09×) | — |
+
+Identical with and without the server setting. The plateau at two workers is the signature
+of a single inference slot: a 6.2 GB model on an 8.15 GB card leaves ~1.9 GB, and each extra
+slot needs its own KV cache. Ollama accepts the setting and quietly declines to grant a slot
+it cannot fit.
+
+The 9% present is our own CPU work overlapping inference — **no inference runs in parallel
+at all.** The implementation is correct and deterministic (output byte-identical at 1 and 8
+workers) and would give real parallelism on a larger card. **The architecture is
+concurrency-ready; this laptop's VRAM is the constraint.** We do not quote a projected
+figure we have not measured.
+
+---
+
+## 7. Throughput
+
+| | |
+|---|---|
+| Warm extraction | **1.14–1.39 s/product** |
+| GPU placement | 13% / 87% CPU/GPU |
+| 1,000 products | **≈ 19 minutes** |
+| Empty or unparseable responses | 0 across every run |
+
+⚠️ Placement is checked before every run (`preflight.py`). If something else is holding
+VRAM the model silently falls back to CPU and runs 3.5× slower with no error — measured the
+hard way, when a game left 4.6 GB resident and `ollama ps` read `98%/2% CPU/GPU`.
+
+---
+
+## Reproducing
+
+```bash
+uv sync --extra models --extra api --extra dev
+ollama pull qwen3-vl:8b
+uv run pytest -q                     # 759 tests
+uv run crucible enrich --input "Unihack_ Sample Dataset - Input.csv" --out runs/demo --limit 120
+uv run crucible evaluate --input "Unihack_ Sample Dataset - Input.csv" --limit 120
+uv run crucible-app                  # http://127.0.0.1:8000
+```

@@ -58,17 +58,40 @@ These are load-bearing. Changing one silently invalidates the results.
 - **Do not enter `TestClient` as a context manager** in API tests. It runs the lifespan,
   which builds a real session and fires inference at Ollama.
 - **8 GB VRAM.** qwen3-vl:8b at 6.1 GB already spills ~11% to CPU. Nothing bigger fits.
+- **Check `ollama ps` before debugging slow extraction.** If anything else holds VRAM the
+  model silently falls back to CPU (`98%/2% CPU/GPU`) and runs 3.5x slower with no error.
+  A game left 4.6 GB resident and cost three calibration runs. `preflight.py` now refuses.
+- **An outage can impersonate an abstention.** A dead Ollama makes `propose()` return `[]`,
+  which becomes a blank cell — indistinguishable from a deliberate one. `enrich` raises
+  `ExtractionUnavailable` above 5% transport failures. Never soften that into a warning.
+- **`fingerprint()` excludes presentation fields.** Adding `label`/`display_uom`/`order` to
+  `AttributeSpec` once changed every schema hash and invalidated the harvest cache, which
+  costs ~25 minutes of inference on the next app launch. A column heading is not checkable
+  content.
+- **`extra` on `RawProduct` is keyed by the source file's own column names** (`E1_Brand`,
+  `part_manuf_name`), not lowercase slugs. Guessing the slugs left four columns silently
+  empty on every row.
+- **Aggregate by `category_id`, never by `sheet_label`.** Labels are chosen to be
+  human-friendly and are therefore not unique — `bit_type` and `appliance_type` are both
+  "Product Name". Keying a diagnostic on the label invented a router bug that did not exist.
+- **Never call vocabulary checking "LOV compliance."** The client's 161k-row LOV was not
+  supplied; we measure against our own lists. Claiming their standard is the one move the
+  guide says scores zero. A test asserts the phrase never appears.
 
 ## Shape of the pipeline
 
 ```
-ERP text → extract (rules → llm) → normalize → assay (4 verifiers)
-         → fuse (learned scorer) → certify (conformal) → dial / review queue
+CSV in (6 cols) → ingest → route (taxonomy) → extract (rules → llm) → normalize
+                → assay (6 verifiers) → fuse (learned scorer) → certify (conformal)
+                → compose (deterministic prose) → emit (252-column XLSX/CSV + evidence)
 ```
 
-Key modules: `pipeline.py` (orchestration), `api/session.py` (holds everything in memory
-so the dial re-thresholds instantly), `certify/conformal.py` (the bound),
-`certify/scorer.py` (signal fusion), `assay/` (the four verifiers).
+Key modules: `enrich.py` (the catalog run), `emit/rows.py` (what goes in each of the 252
+columns), `emit/compose.py` (the five descriptions), `route/` (taxonomy), `evaluate.py`
+(the three metrics judges look for), `preflight.py` (refuses a run the hardware cannot
+serve), `certify/conformal.py` (the bound), `assay/` (the six verifiers).
+
+`pipeline.py` and `api/session.py` still hold the calibration path and the dial.
 
 ## Working agreements
 
@@ -80,10 +103,28 @@ so the dial re-thresholds instantly), `certify/conformal.py` (the bound),
 
 ## Current state and what is next
 
-See `docs/RESULTS.md` for measured numbers and `docs/HANDOFF.md` for setup and the
-prioritised next steps.
+Read `docs/RESULTS.md` for measured numbers, `guide.md` for what the client is scoring, and
+`DIARY.md` (append-only) for how each decision was reached.
 
-The short version: four verifiers, AUROC 0.928, guarantee holds at every alpha it will
-issue one, and 2% is unreachable by **exactly one error** — a calibration sample size
-problem, not a verifier problem. More data therefore beats a fifth verifier, which makes
-the Icecat ingestion the highest-value work.
+**Where it stands.** 759 tests. `crucible enrich` turns the real input CSV into a
+252-column delivery file; **61 of 252 columns** carry values on a 120-product run, including
+all five description formats. Character-limit compliance 95-100%, controlled-vocabulary
+compliance 76%. A product website (landing / sign-in / workspace) with live progress and
+four downloads.
+
+**Two corrections to earlier guidance in this file's own history:**
+
+- **Icecat is dead.** `docs/HANDOFF.md` had it as priority 1. Measured 0 real matches out of
+  999 part numbers across the whole daily index. Open Icecat does not cover US
+  building-materials distribution. Keep `corpus/icecat.py` for the record.
+- **AUROC 0.928 is stale and describes a domain this project no longer targets.** The
+  synthetic corpus now reads 0.992 with six verifiers; the real catalog reads **0.662**. Do
+  not quote the old figure anywhere.
+
+**What is blocked.** Seven reference files named in the Solution Guide were never published
+with the sample pack — the 200-row labelled ground truth, the 161k LOV, the 27k
+manufacturer/brand list, the UOM standards. See `WINNING-PLAN.md` Step 0 for what each
+would unblock and what substitutes for it meanwhile.
+
+**Highest-value work still available without them:** the submission framing (Step 7), and
+using the evaluation harness to keep improving the vocabularies it measures.

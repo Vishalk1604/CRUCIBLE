@@ -1,0 +1,129 @@
+# Composite and PVC deck boards — the largest category in the catalog, 160 of 1000 rows.
+#
+# The format is rigid and carries most of the product:
+#
+#     1x6-20' Weathered Teak Grooved - Vintage Azek PVC Decking
+#     └┬┘ └┬┘  └─┬─┘ └──────┬──────┘ └──┬──┘   └────┬────┘ └┬┘
+#   thick width length      colour    edge      collection material
+#
+# Two things about it are worth knowing before authoring anything here.
+#
+# The dimensions are *nominal*, not actual. A "1x6" board measures roughly 0.94" x 5.5".
+# That is a trade convention, not an error, so the constraints below compare nominal
+# against nominal and never assert a nominal figure is a measurement. Asserting otherwise
+# would make the verifier reject the entire category.
+#
+# The colour names collide with hardware nouns. "Castle Gate", "Whiskey Barrel",
+# "Harvest", "Reserve", "Vintage" and "Select" are all finishes here, and several are also
+# words that mean something else elsewhere in the catalog. This already caused a routing
+# bug (a board disqualified for containing "gate"), and it is why `colour` is a free-text
+# attribute rather than a closed vocabulary: the palette changes every season and a
+# vocabulary that lags it would reject real products.
+
+category_id: decking.board
+name: Composite & PVC Decking
+unspsc: "30103604"
+
+attributes:
+  - name: nominal_thickness
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Nominal Thickness
+    order: 1
+    required: true
+    description: >
+      First figure of the nominal size. Almost always 1 or 2 inches. Nominal, not
+      measured — a 1x6 board is about 0.94 inches thick.
+
+  - name: nominal_width
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Nominal Width
+    order: 2
+    required: true
+    description: Second figure of the nominal size — 6 and 12 dominate this catalog.
+
+  - name: length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: ft
+    label: Length
+    order: 3
+    required: true
+    description: >
+      Board length in feet, written after the hyphen ("1x6-20'"). Stock lengths are 12,
+      16 and 20 feet.
+
+  - name: material
+    kind: nominal
+    label: Material
+    order: 4
+    required: true
+    vocabulary:
+      - PVC
+      - capped composite
+      - composite
+      - capped polymer
+      - wood plastic composite
+
+  - name: edge_profile
+    kind: nominal
+    label: Edge Profile
+    order: 5
+    required: true
+    vocabulary:
+      - grooved
+      - square edge
+      - scalloped
+      - solid
+
+  - name: colour
+    kind: text
+    label: Color
+    order: 6
+    description: >
+      Finish name as the manufacturer writes it — "Weathered Teak", "Tide Pool",
+      "English Walnut". Free text on purpose: the palette is seasonal and a closed
+      vocabulary would reject next year's products.
+
+  - name: collection
+    kind: text
+    label: Collection
+    order: 7
+    description: Product line — Vintage, Transcend, Enhance Basics, Select, Landmark.
+
+  - name: board_type
+    kind: nominal
+    label: Board Type
+    order: 8
+    vocabulary:
+      - deck board
+      - decking   # the catalog's own word for the same thing
+      - fascia
+      - riser
+      - stair tread
+
+  - name: surface_texture
+    kind: nominal
+    label: Surface
+    order: 9
+    vocabulary:
+      - embossed wood grain
+      - brushed
+      - smooth
+      - variegated
+
+constraints:
+  # Nominal against nominal. A board wider than it is thick, and longer than it is wide,
+  # is true of every deck board ever milled — and a swap of the "1x6" figures or of the
+  # length breaks it immediately.
+  - nominal_thickness <= nominal_width
+  - nominal_width < length
+  - nominal_thickness < length
+  - nominal_thickness > 0
+  - length > 0

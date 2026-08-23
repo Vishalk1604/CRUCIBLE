@@ -133,6 +133,18 @@ class AttributeSpec(BaseModel):
     dimension is the physical dimensionality string understood by pint (for example
     "[length]" or "[mass] / [length] / [time] ** 2"). It is what lets the dimensional
     verifier reject "thread pitch: 4.2 kg" without anyone hand-writing that rule.
+
+    The last three fields describe how the attribute *presents* in a delivery sheet rather
+    than what it means. They live here because this is already where a category is
+    configured: a product manager adding an attribute should be able to say what it is
+    called on the sheet in the same place they say what it is, instead of that mapping
+    living as a lookup table inside the exporter.
+
+    `label` matters more than it looks. The delivery format's ATTRIBUTE_LABEL cells are a
+    property of the category, not of the product - both reference rows for dishwashers
+    carry the identical fifteen labels and differ only in which values are filled. So the
+    label is emitted whenever the category is known, and the value only when one was
+    actually established.
     """
 
     name: str
@@ -143,6 +155,19 @@ class AttributeSpec(BaseModel):
     vocabulary: list[str] | None = None  # allowed terms, for NOMINAL
     required: bool = False
     etim_feature: str | None = None  # e.g. "EF000008", for standards export
+    label: str | None = None  # ATTRIBUTE_LABEL text, e.g. "Voltage Rating"
+    display_uom: str | None = None  # ATTRIBUTE_UOM text, e.g. "V" - a symbol, not a name
+    order: int | None = None  # position in the category's attribute template
+
+    @property
+    def sheet_label(self) -> str:
+        """What the delivery sheet calls this attribute.
+
+        Falls back to a title-cased attribute name so a schema authored without labels
+        still exports something readable rather than snake_case leaking onto a sheet a
+        customer reads.
+        """
+        return self.label or self.name.replace("_", " ").title()
 
     @model_validator(mode="after")
     def _check_kind_consistency(self) -> AttributeSpec:
@@ -181,6 +206,19 @@ class CategorySchema(BaseModel):
 
     def get(self, name: str) -> AttributeSpec | None:
         return next((a for a in self.attributes if a.name == name), None)
+
+    def template(self) -> list[AttributeSpec]:
+        """Attributes in the order the delivery sheet lists them.
+
+        Explicit `order` first and in ascending order, then anything unordered in
+        declaration order. Stable across runs, because the ATTRIBUTE_LABEL n columns are a
+        positional contract: a product re-exported after an unrelated edit must not have
+        its Voltage Rating move from slot 4 to slot 7, or every downstream diff of that
+        catalog becomes noise.
+        """
+        ordered = [a for a in self.attributes if a.order is not None]
+        unordered = [a for a in self.attributes if a.order is None]
+        return sorted(ordered, key=lambda a: a.order or 0) + unordered
 
     @model_validator(mode="after")
     def _unique_attribute_names(self) -> CategorySchema:
@@ -272,12 +310,43 @@ class AttributeValue(BaseModel):
         return len(self.spans) > 0
 
 
+class Routing(BaseModel):
+    """Where a product was classified, how, and on what evidence.
+
+    Routing is treated as a value rather than a side effect, and carries spans for the
+    same reason every other value does: the four classification columns are published
+    data, and a Dept nobody can trace is exactly as unsupportable as a bore nobody can
+    trace. `method` records which tier of the cascade decided, so a routing can be
+    audited without re-running it.
+
+    When nothing is recognised, `category_id` is the generic fallback and dept/klass/fine
+    are None. Guessing a department to avoid an empty cell would be the classification
+    equivalent of inventing a magnitude to satisfy a schema.
+    """
+
+    category_id: str
+    dept: str | None = None
+    klass: str | None = None
+    fine: str | None = None
+    classpath: str | None = None
+    unspsc: str | None = None
+    confidence: float = 0.0
+    method: str = "none"
+    spans: list[SourceSpan] = Field(default_factory=list)
+    runners_up: list[tuple[str, float]] = Field(default_factory=list)
+
+    @property
+    def is_generic(self) -> bool:
+        return self.dept is None
+
+
 class ProductRecord(BaseModel):
     """A product mid-pipeline: raw input, resolved identity, proposed values."""
 
     raw: RawProduct
     category_id: str | None = None
     expanded_description: str | None = None
+    routing: Routing | None = None
     evidence: list[EvidenceDoc] = Field(default_factory=list)
     values: list[AttributeValue] = Field(default_factory=list)
 

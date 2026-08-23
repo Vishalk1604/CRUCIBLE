@@ -1,0 +1,142 @@
+# LED lamps — 122 rows, and the category with the nastiest unit trap in the catalog.
+#
+#     S21354 8W Led T9 Med 27k
+#            └┬┘     └┬┘ └┬┘ └┬┘
+#         wattage  shape base  colour temperature
+#
+# "27k" means 2700 K. It does not mean 27 kilo-anything. This is a real unit collision —
+# k is both kelvin and the SI kilo prefix — and the naive reading turns a warm-white bulb
+# into a 27,000 K one, which is hotter than the surface of the sun and not a product
+# anyone sells. `units.COLOUR_TEMPERATURE_SHORTHAND` holds the expansion as an explicit
+# auditable table, and the constraint below is the backstop: any value outside the range
+# lamps are actually manufactured in is wrong regardless of how it was parsed.
+#
+# The lamp shape codes (T9, B11, A19, BR30, PAR38) are IEC/ANSI designations where the
+# letter is the envelope shape and the number is the diameter in eighths of an inch.
+# They are a closed set, so they belong in a vocabulary — unlike deck board colours.
+
+category_id: lamp.led
+name: LED Lamps
+unspsc: "39101605"
+
+attributes:
+  - name: wattage
+    kind: quantity
+    dimension: "[power]"
+    canonical_unit: watt
+    display_uom: W
+    label: Wattage
+    order: 1
+    required: true
+    description: Actual consumed power, not the incandescent equivalent it replaces.
+
+  - name: colour_temperature
+    kind: quantity
+    dimension: "[temperature]"
+    canonical_unit: kelvin
+    display_uom: K
+    label: Color Temperature
+    order: 2
+    required: true
+    description: >
+      Correlated colour temperature. Written as trade shorthand in almost every
+      description ("27k", "50k"), which must be expanded to 2700 K and 5000 K before it
+      means anything.
+
+  - name: lamp_shape
+    kind: nominal
+    label: Bulb Shape
+    order: 3
+    required: true
+    vocabulary:
+      - A19
+      - A21
+      - B11
+      - BR30
+      - BR40
+      - PAR16
+      - PAR20
+      - PAR30
+      - PAR38
+      - MR16
+      - T8
+      - T9
+      - T12
+      - ST19
+      - G25
+
+  - name: base_type
+    kind: nominal
+    label: Base Type
+    order: 4
+    required: true
+    vocabulary:
+      - medium
+      - candelabra
+      - intermediate
+      - mogul
+      - GU10
+      - GU24
+      - G13 bi-pin
+
+  - name: lumens
+    kind: quantity
+    dimension: "[luminous_flux]"
+    canonical_unit: lumen
+    display_uom: lm
+    label: Light Output
+    order: 5
+    description: Luminous flux. Rises with wattage, which is what makes the ratio checkable.
+
+  - name: voltage_rating
+    kind: quantity
+    dimension: "[electric_potential]"
+    canonical_unit: volt
+    display_uom: V
+    label: Voltage Rating
+    order: 6
+    description: Line voltage, 120 V for most North American lamps.
+
+  - name: dimmable
+    kind: nominal
+    label: Dimmable
+    order: 7
+    vocabulary:
+      - dimmable
+      - non-dimmable
+
+  - name: cri
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    display_uom: CRI
+    label: Color Rendering Index
+    order: 8
+    description: Colour rendering index, 0-100. 80 and 90 are the common grades.
+
+  - name: rated_life
+    kind: quantity
+    dimension: "[time]"
+    canonical_unit: hour
+    display_uom: hr
+    label: Rated Life
+    order: 9
+
+  - name: pack_quantity
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    label: Quantity
+    order: 10
+    description: Lamps per pack, where the description says so ("3pk").
+
+constraints:
+  # The backstop for the 27k trap. Manufactured lamps run roughly 1800 K (amber) to
+  # 6500 K (daylight); the bound below is generous on both sides and still catches a
+  # shorthand that was read as a magnitude.
+  - colour_temperature >= 1500
+  - colour_temperature <= 8000
+  - wattage > 0
+  - lumens > 0
+  - cri <= 100
+  - pack_quantity > 0

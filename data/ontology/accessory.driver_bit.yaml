@@ -1,0 +1,105 @@
+# Driver and drill bits — 34 rows, and a family the first taxonomy pass missed entirely.
+#
+# Found by auditing what was still routing to generic: "bit" appeared in 33 of the
+# unclassified descriptions and "drive" in 27. Worth recording as a method note — the tail
+# was not noise, it was a category nobody had written down yet.
+#
+# The drive codes are a closed set (PH2, SQ2, T25, and the hex sizes), so they belong in a
+# vocabulary. Bit *length* and *shank* are separate dimensions that both get written in
+# inches, which is the usual swap risk, hence the constraint.
+
+category_id: accessory.driver_bit
+name: Driver & Drill Bits
+unspsc: "27112103"
+
+attributes:
+  - name: bit_type
+    kind: nominal
+    label: Product Name
+    order: 1
+    required: true
+    vocabulary:
+      - driver bit
+      - drill bit
+      - nut driver
+      - bit holder
+      - spade bit
+      - auger bit
+      - hole saw
+      - countersink
+      - bit set
+
+  - name: drive_style
+    kind: nominal
+    label: Drive Type
+    order: 2
+    required: true
+    vocabulary:
+      - phillips
+      - square
+      - torx
+      - slotted
+      - hex
+      - combination
+      - pozidriv
+
+  - name: drive_size
+    kind: text
+    label: Drive Size
+    order: 3
+    description: >
+      Designation rather than a measurement — PH2, SQ2, T25. Text because the code
+      encodes a standardised tip geometry, not a length, and parsing "T25" as 25 of
+      anything would be a dimensional claim nobody made.
+
+  - name: overall_length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Length
+    order: 4
+    description: Bit length — 1", 2", 3-1/2", 6".
+
+  - name: shank_size
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Shank Size
+    order: 5
+    description: Hex shank across flats, normally 1/4".
+
+  - name: material
+    kind: nominal
+    label: Material
+    order: 6
+    vocabulary:
+      - S2 steel
+      - high speed steel
+      - cobalt
+      - carbide
+      - titanium coated
+      - black oxide
+
+  - name: impact_rated
+    kind: nominal
+    label: Impact Rated
+    order: 7
+    vocabulary:
+      - impact rated
+      - not impact rated
+
+  - name: pack_quantity
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    label: Quantity
+    order: 8
+
+constraints:
+  # A bit is longer than its shank is wide. Both are inches in the source text, so a swap
+  # is dimensionally invisible and only this catches it.
+  - shank_size < overall_length
+  - overall_length > 0
+  - pack_quantity > 0

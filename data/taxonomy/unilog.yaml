@@ -1,0 +1,378 @@
+# The taxonomy the router assigns, and the source of the four classification columns.
+#
+# Authored by reading the 1000-row sample, not by imagining what a distributor sells.
+# Every keyword below appears in that file; the counts in each comment are the number of
+# descriptions containing the node's strongest term. Nodes are ordered roughly by
+# population so the file reads as a picture of the catalog.
+#
+# Two taxonomies, deliberately:
+#   dept / klass / fine  - the three flat columns the sheet wants
+#   classpath            - a separate ">"-delimited path
+# In the reference sheet these disagree - Appliances / Large Appliances / Dishwashers
+# against "Appliances & Consumer Electronics>Kitchen Appliances>Built-In Dishwashers" -
+# so they are stored as independent fields rather than one derived from the other.
+#
+# `strong` terms are near-decisive for the node, `keywords` are supporting evidence, and
+# `negative` terms disqualify it outright. The split matters: "light" alone is weak
+# because it appears in both bulbs and fixtures, while "highbay" is decisive. A node that
+# wins on weak evidence alone is exactly the routing the cascade should hand upward
+# rather than commit to.
+
+- category_id: decking.board
+  dept: Building Materials
+  klass: Decking & Railing
+  fine: Composite & PVC Decking
+  classpath: Building Materials>Decking & Porch>Deck Boards
+  unspsc: "30103604"
+  strong: [decking, deckboard]
+  keywords: [grooved, sq, edge, fascia, azek, trex, timbertech, pvc, composite, transcend, enhance, select, vintage, harvest, naturals, lineage, basics, reserve]
+  patterns:
+    - '\b\d+n?x\d+-\d+''' # 1x6-20', 1nx6-16'
+  # "gate" was here as a disqualifier and cost a real board: "1x12-12' Castle Gate -
+  # Landmark Azek PVC Fascia" is decking whose *colour* is Castle Gate. Colour names in
+  # this catalog collide freely with hardware nouns (Harvest, Reserve, Vintage), so
+  # disqualifiers have to be terms that never appear as a finish.
+  negative: [baluster, balusters]
+
+- category_id: decking.railing
+  dept: Building Materials
+  klass: Decking & Railing
+  fine: Railing Systems & Components
+  classpath: Building Materials>Decking & Porch>Railing
+  unspsc: "30151800"
+  # "rail" is decisive, not supporting. As a keyword it left "Assembled Black Rail Panel"
+  # one point ahead of decking.board - which was scoring on the TREX in the brand column -
+  # and a one-point lead inside the same product family reads as a tie, so the router
+  # refused a row it should have been sure about.
+  strong: [baluster, balusters, railing, rail]
+  keywords: [post, horiz, kit, panel, alum, bracket, gate, newel, t-rail, finyline, rdi, cap]
+  patterns:
+    - '\brail\b'
+    - '\bpost\b'
+  negative: [decking, light, lamp]
+
+- category_id: lamp.led
+  dept: Electrical
+  klass: Lamps & Bulbs
+  fine: LED Lamps
+  classpath: Electrical>Lighting>Lamps & Bulbs>LED Lamps
+  unspsc: "39101605"
+  strong: [led]
+  keywords: [med, cand, lamp, bulb, retro, dimmable, flood, gu10, e26, filament]
+  patterns:
+    - '\b\d{1,3}\s?[wW]\b'      # 8W, 40W
+    - '\b\d{2}[kK]\b'           # 27k, 50k colour temperature
+    - '\b(A19|A21|BR30|BR40|PAR16|PAR20|PAR30|PAR38|T8|T9|T12|B11|ST19|MR16|G25)\b'
+  negative: [highbay, chandelier, pendant, sconce, decking, rail]
+
+- category_id: lamp.incandescent
+  dept: Electrical
+  klass: Lamps & Bulbs
+  fine: Incandescent & Halogen Lamps
+  classpath: Electrical>Lighting>Lamps & Bulbs>Incandescent Lamps
+  unspsc: "39101601"
+  strong: [incan, incandescent, halogen]
+  keywords: [med, cand, lamp, bulb, flor, fluorescent, appl]
+  patterns:
+    - '\b\d{1,3}\s?[wW]\b'
+  negative: [led, decking, rail]
+
+- category_id: luminaire.fixture
+  dept: Electrical
+  klass: Lighting Fixtures
+  fine: Indoor & Outdoor Luminaires
+  classpath: Electrical>Lighting>Fixtures>Luminaires
+  unspsc: "39111500"
+  strong: [highbay, chandelier, pendant, sconce, luminaire, downlight]
+  keywords: [light, lt, fixture, wall, bath, ceiling, vanity, strip, troffer, kichler, nuvo, flush, mount, outdoor, landscape]
+  patterns:
+    - '\b(wall|bath|ceiling|strip|flush)\s+(light|lt)\b'
+  negative: [decking, baluster, bulb]
+
+- category_id: abrasive.cutoff_disc
+  dept: Tools & Equipment
+  klass: Power Tool Accessories
+  fine: Cut-Off & Grinding Wheels
+  classpath: Tools & Equipment>Power Tool Accessories>Abrasive Wheels
+  unspsc: "23101500"
+  strong: [cut-off, cutoff]
+  # "off" must be quoted: YAML 1.1 reads the bare token as boolean false, which reached
+  # pydantic as False and failed validation. on/off/yes/no all have this problem.
+  keywords: [cut, "off", disc, wheel, grinding, metal, steel, demon, dko, abrasive, diablo]
+  patterns:
+    - '\bcut[\s-]?off\b'
+    - '\b\d+(?:-\d+/\d+)?"x[\d./]+"x[\d./]+"'   # 5"x.045"x7/8"
+  negative: [sanding, belt, blade, decking]
+
+- category_id: abrasive.coated
+  dept: Tools & Equipment
+  klass: Power Tool Accessories
+  fine: Sanding Belts, Discs & Sheets
+  classpath: Tools & Equipment>Power Tool Accessories>Coated Abrasives
+  unspsc: "31191500"
+  strong: [sanding, stikit, abranet, sandpaper]
+  keywords: [belt, disc, sheet, grit, sand, mesh, hook, loop, cubitron, mirka, roll]
+  patterns:
+    - '\bP\d{2,4}\b'          # P150, P320 grit
+    - '\b\d{2,4}\s?grit\b'
+  negative: [cut-off, cutoff, blade, decking]
+
+- category_id: blade.saw
+  dept: Tools & Equipment
+  klass: Power Tool Accessories
+  fine: Saw Blades
+  classpath: Tools & Equipment>Power Tool Accessories>Saw Blades
+  unspsc: "27112700"
+  strong: [blade, blades]
+  keywords: [saw, circ, circular, recip, jig, band, tooth, teeth, carbide, tct, framing, demo]
+  patterns:
+    - '\b\d{1,3}\s?T\b'       # tooth count
+  negative: [decking, rail, lamp]
+
+- category_id: powertool.cordless
+  dept: Tools & Equipment
+  klass: Power Tools
+  fine: Cordless Tools
+  classpath: Tools & Equipment>Power Tools>Cordless Power Tools
+  unspsc: "27112800"
+  # Tool nouns are decisive; brand names are not. "Milw" was strong here and it made
+  # "Milw 4-1/2\"x1/8\"x5/8-11\" Metal Cut Off" a tie between this node and the cut-off
+  # disc, because Milwaukee sells both the grinder and the wheel. A brand narrows a
+  # catalog, it does not name a product.
+  strong: [drill, driver, impact, wrench, grinder, sander, nailer, ratchet, blower]
+  keywords: [m12, m18, dewalt, milw, makita, festool, kreg, saw, grease, gun, kit, bare, tool, only, brushless, vac, cordless, hammer]
+  patterns:
+    - '\b(12|18|20|40|60)\s?V\b'
+  negative: [decking, baluster, lamp, bulb]
+
+- category_id: accessory.driver_bit
+  dept: Tools & Equipment
+  klass: Power Tool Accessories
+  fine: Driver & Drill Bits
+  classpath: Tools & Equipment>Power Tool Accessories>Bits & Drivers
+  unspsc: "27112103"
+  strong: [bit, bits, torx]
+  keywords: [drive, driver, phillips, square, hex, slotted, shockwave, impact, nut, spade, auger, countersink, magnetic, holder, tip, pack]
+  patterns:
+    - '\b(PH|SQ|T)\d{1,2}\b'      # PH2, SQ2, T25
+    - '\b\d/\d+"\s?(hex|shank)\b'
+  negative: [decking, lamp, disc, rail]
+
+- category_id: safety.ppe
+  dept: Safety & Workwear
+  klass: Personal Protective Equipment
+  fine: Eye, Ear & Hand Protection
+  classpath: Safety & Workwear>Personal Protective Equipment>PPE
+  unspsc: "46181800"
+  strong: [glasses, goggles, respirator, earmuff]
+  keywords: [safety, protector, hearing, protection, clear, tinted, anti, fog, lens, ansi, nitrile, cut, level, dipped]
+  patterns: []
+  negative: [decking, lamp, decking]
+
+- category_id: roofing.panel
+  dept: Building Materials
+  klass: Roofing
+  fine: Metal Roofing & Trim
+  classpath: Building Materials>Roofing & Gutters>Metal Roofing
+  unspsc: "30151500"
+  strong: [roofing, rib, ridge, soffit-vent]
+  keywords: [premier, xl, panel, metal, galvalume, corrugated, drip, gutter, downspout, charcoal]
+  patterns: []
+  negative: [decking, lamp, disc]
+
+- category_id: powertool.battery
+  dept: Tools & Equipment
+  klass: Power Tools
+  fine: Batteries & Chargers
+  classpath: Tools & Equipment>Power Tools>Batteries & Chargers
+  unspsc: "26111701"
+  strong: [battery, charger, batt]
+  keywords: [pack, ah, starter, kit, redlithium, xc, powerstack, m12, m18, dewalt]
+  patterns:
+    - '\b\d(?:\.\d)?\s?Ah\b'
+  negative: [decking, lamp]
+
+- category_id: appliance.major
+  dept: Appliances
+  klass: Large Appliances
+  fine: Major Kitchen & Laundry Appliances
+  classpath: Appliances & Consumer Electronics>Kitchen Appliances>Major Appliances
+  unspsc: "52141500"
+  strong: [dishwasher, refrigerator, freezer, washer, dryer, range, cooktop, microwave, oven, laundry]
+  keywords: [ss, stainless, elect, gas, upright, french, top, load, front, caf, ge, whirlpool, display, center, hood, disposal, heater, fridge, fan]
+  patterns:
+    - '\b\d{1,2}\s?CF\b'      # 21CF cubic feet
+  negative: [decking, rail, disc]
+
+- category_id: apparel.heated
+  dept: Safety & Workwear
+  klass: Workwear
+  fine: Heated Apparel
+  classpath: Safety & Workwear>Apparel>Heated Gear
+  unspsc: "53102500"
+  strong: [heated]
+  keywords: [hoodie, jacket, glove, gloves, vest, kit, m12, size, blk, gray]
+  patterns:
+    - '\b(S|M|L|XL|2X|3X)\b'
+  negative: [decking, lamp, disc]
+
+- category_id: lumber.panel
+  dept: Building Materials
+  klass: Lumber & Panels
+  fine: Soffit, Trim & Sheet Goods
+  classpath: Building Materials>Lumber & Composites>Panels & Trim
+  unspsc: "30103100"
+  strong: [soffit, plywood, osb, drywall, sheathing]
+  keywords: [cedar, vented, smart, trim, board, panel, sheet, primed, fiber, cement, shake]
+  patterns: []
+  negative: [decking, rail, lamp]
+
+- category_id: lumber.dimensional
+  dept: Building Materials
+  klass: Lumber & Panels
+  fine: Dimensional Lumber & Boards
+  classpath: Building Materials>Lumber & Composites>Dimensional Lumber
+  unspsc: "30103600"
+  strong: [fir, pine, cedar, spruce, redwood, hemlock]
+  keywords: [doug, stk, smooth, rough, s4s, kd, treated, board, timber, stud, joist]
+  patterns:
+    - '\b1S2E\b|\bS4S\b|\bKD\b'
+  negative: [decking, rail, lamp, disc]
+
+- category_id: masonry.mortar
+  dept: Building Materials
+  klass: Concrete & Masonry
+  fine: Mortar & Grout
+  classpath: Building Materials>Concrete, Cement & Masonry>Mortar
+  unspsc: "30111600"
+  strong: [mortar, grout, stucco]
+  keywords: [type, sand, mix, cement, bag, charcoal, buff, chocolate]
+  patterns:
+    - '\bType\s+[NSMO]\b'
+  negative: [decking, lamp, disc]
+
+- category_id: millwork.opening
+  dept: Building Materials
+  klass: Millwork
+  fine: Doors, Windows & Skylights
+  classpath: Building Materials>Doors & Windows>Doors, Windows & Skylights
+  unspsc: "30171500"
+  strong: [door, patio, entryway, skylight, skylt, window, threshold, hopper]
+  keywords: [gliding, sliding, lowe, arg, ext, int, access, attic, jamb, prehung, swing, screen, velux, shade, bsmt, sill, glazing]
+  patterns:
+    - '\b\d{4}[LR]\b'         # 6068L / 6068R door hands
+  negative: [decking, disc, lamp]
+
+- category_id: consumable.tape
+  dept: Building Materials
+  klass: Adhesives & Sealants
+  fine: Tapes & Flashing
+  classpath: Building Materials>Adhesives, Sealants & Tape>Tape
+  unspsc: "31201500"
+  strong: [tape, flashing]
+  keywords: [vinyl, elect, joist, seam, butyl, wrap, protecto, emseal, roll]
+  patterns:
+    - "\\bx\\d+'\\B"          # 3/4x60', 2\"x50'
+  negative: [decking, lamp, disc]
+
+- category_id: electrical.device
+  dept: Electrical
+  klass: Wiring Devices
+  fine: Outlets, Switches & Plates
+  classpath: Electrical>Wiring Devices>Receptacles & Switches
+  unspsc: "39121400"
+  strong: [outlet, receptacle, gfci, switch]
+  keywords: [amp, dimmer, plate, wall, br, tr, weather, resistant, duplex]
+  patterns:
+    - '\b\d{2}A\b'            # 15A, 20A
+  negative: [decking, disc, blade]
+
+# ---------------------------------------------------------------------------------------
+# Categories the 1000-row sample does not contain, added for the evaluation set.
+#
+# The Solution Guide specifies Faucets and Fittings end to end and calls them the ideal
+# demo scope, which makes them the two most likely to appear in unseen data. A stress test
+# on an unfamiliar catalog routed 1 of 10 products; every node below closes part of that
+# gap. Keywords come from ordinary trade vocabulary rather than from the sample, and are
+# marked as such so nobody later mistakes them for measured terms.
+# ---------------------------------------------------------------------------------------
+
+- category_id: faucet.kitchen_bath
+  dept: Plumbing
+  klass: Faucets & Fixtures
+  fine: Kitchen & Bath Sink Faucets
+  classpath: Plumbing>Faucets>Kitchen & Bath Sink Faucets
+  unspsc: "30181500"
+  strong: [faucet, tapware]
+  keywords: [lavatory, kitchen, bath, sink, spout, handle, widespread, centerset, pulldown, pullout, aerator, gpm, chrome, brushed, nickel, delta, moen, kohler, pfister]
+  negative: [wrench, cartridge]
+
+- category_id: fitting.pipe
+  dept: Plumbing
+  klass: Pipe, Valves & Fittings
+  fine: Pipe & Tube Fittings
+  classpath: Plumbing>Pipe & Fittings>Fittings
+  unspsc: "40141600"
+  strong: [cplg, coupling, elbow, tee, nipple, union, bushing]
+  keywords: [fitting, adapter, reducer, fip, mip, npt, sweat, barb, compression, brs, brass, copper, cpvc, pex, sch40, sch80, "90", "45"]
+  negative: [faucet, valve]
+
+- category_id: valve.plumbing
+  dept: Plumbing
+  klass: Pipe, Valves & Fittings
+  fine: Valves
+  classpath: Plumbing>Pipe & Fittings>Valves
+  unspsc: "40141607"
+  strong: [ballvalve, gatevalve, checkvalve]
+  keywords: [valve, ball, gate, check, globe, shutoff, stop, wog, cwp, scrd, bronze, nibco]
+  negative: [faucet]
+
+- category_id: electrical.wiring_device
+  dept: Electrical
+  klass: Wiring Devices
+  fine: Switches, Outlets & Plates
+  classpath: Electrical>Wiring Devices>Switches & Receptacles
+  unspsc: "39121400"
+  strong: [receptacle, gfci, wallplate]
+  keywords: [outlet, switch, duplex, tamper, decora, toggle, dimmer, plate, amp, "15a", "20a", leviton, hubbell]
+  negative: [breaker, panel]
+
+- category_id: fastener.general
+  dept: Hardware
+  klass: Fasteners
+  fine: Screws, Bolts & Anchors
+  classpath: Hardware>Fasteners>Screws & Bolts
+  unspsc: "31161500"
+  strong: [hexcap, lagscrew, anchorbolt]
+  keywords: [screw, bolt, nut, washer, anchor, lag, hex, phillips, zinc, galv, stainless, thread, tapcon, deck screw]
+  negative: [driver, bit]
+
+- category_id: hvac.equipment
+  dept: HVAC
+  klass: Heating & Cooling
+  fine: HVAC Equipment & Components
+  classpath: HVAC>Equipment>Heating & Cooling
+  unspsc: "40101700"
+  strong: [furnace, condenser, evaporator, thermostat]
+  keywords: [hvac, heat, pump, air handler, duct, register, grille, filter, merv, btu, seer, rheem, goodman, carrier]
+  negative: []
+
+- category_id: printer.industrial
+  dept: Technology
+  klass: Printing & Labeling
+  fine: Industrial & Label Printers
+  classpath: Technology>Printers>Label Printers
+  unspsc: "43212100"
+  strong: [printer, thermal printer]
+  keywords: [label, barcode, thermal, dpi, ribbon, zebra, datamax, direct thermal, transfer]
+  negative: [cartridge, toner]
+
+- category_id: safety.fall_protection
+  dept: Safety
+  klass: Personal Protective Equipment
+  fine: Fall Protection & Harnesses
+  classpath: Safety>PPE>Fall Protection
+  unspsc: "46181500"
+  strong: [harness, lanyard, lifeline]
+  keywords: [fall, arrest, anchor, d-ring, srl, tie-off, safety, ansi, osha]
+  negative: []

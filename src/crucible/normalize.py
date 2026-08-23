@@ -59,19 +59,47 @@ from crucible.schema import AttributeSpec, AttributeValue, CategorySchema, Produ
 #: Domain synonyms that no code table covers. Kept small and explicit: an open-ended
 #: synonym list becomes a place where wrong mappings hide, so entries earn their place by
 #: appearing in real extractions.
-SYNONYMS: dict[str, str] = {
-    "18-8": "304 stainless steel",
-    "ss": "316 stainless steel",
-    "sst": "316 stainless steel",
-    "stainless": "316 stainless steel",
-    "stainless steel": "316 stainless steel",
-    "carbon steel": "carbon steel",
-    "cs": "carbon steel",
-    "brass": "brass",
-    "brs": "brass",
-    "pvc": "PVC",
-    "ptfe": "PTFE",
-    "teflon": "PTFE",
+#: Each entry lists candidate expansions in preference order. The first candidate the
+#: attribute's own vocabulary permits wins, which is what lets one abbreviation mean
+#: different things in different categories: `SS` is a 316 grade on a valve body and plain
+#: stainless steel on an appliance finish, and both are correct.
+SYNONYMS: dict[str, tuple[str, ...]] = {
+    # materials
+    "18-8": ("304 stainless steel",),
+    "ss": ("316 stainless steel", "stainless steel"),
+    "sst": ("316 stainless steel", "stainless steel"),
+    "stainless": ("316 stainless steel", "stainless steel"),
+    "stainless steel": ("316 stainless steel", "stainless steel"),
+    "carbon steel": ("carbon steel",),
+    "cs": ("carbon steel",),
+    "brass": ("brass",),
+    "brs": ("brass",),
+    "pvc": ("PVC",),
+    "ptfe": ("PTFE",),
+    "teflon": ("PTFE",),
+    # Trade abbreviations, every one of them observed in this catalog's own descriptions
+    # rather than imagined. An open-ended synonym list is where wrong mappings hide, so
+    # entries earn their place by having appeared in a real extraction.
+    "alm": ("aluminum",),
+    "alum": ("aluminum",),
+    "steel": ("steel", "metal"),
+    "comp": ("composite",),
+    "rnd": ("round",),
+    "sq": ("square",),
+    "sq bal": ("square",),
+    "str": ("stair",),
+    "horiz": ("horizontal",),
+    "wh": ("white",),
+    "wht": ("white",),
+    "bk": ("black",),
+    "blk": ("black",),
+    "bltln": ("built-in",),
+    "sq edge": ("square edge",),
+    "decking": ("deck board",),
+    "cut off": ("cut-off",),
+    "cut-off disc": ("cut-off",),
+    "cut off disc": ("cut-off",),
+    "grinding wheel": ("grinding",),
 }
 
 _FRACTION = re.compile(r"^(\d+)?[\s-]*(\d+)/(\d+)$")
@@ -167,8 +195,15 @@ def _canonical_number(text: str, spec: AttributeSpec) -> str | None:
 def _from_vocabulary(text: str, spec: AttributeSpec) -> str | None:
     """Match a value against the attribute's declared vocabulary.
 
-    Exact match first, then unambiguous prefix. Ambiguous matches return None so the
-    value stays visibly unnormalised rather than becoming a confident wrong guess.
+    Exact match, then unambiguous prefix, then a value that *contains* exactly one term.
+    Ambiguous matches at every stage return None, so the value stays visibly unnormalised
+    rather than becoming a confident wrong guess.
+
+    The containment stage exists because catalogs qualify their terms: this data writes
+    "Metal Cut-Off" and "Cut Off Disc" where the vocabulary says `cut-off`, and
+    "Grinding Wheel" where it says `grinding`. Requiring *exactly one* contained term is
+    what keeps that safe - "Metal Cut-Off" resolves because only `cut-off` is inside it,
+    while a value containing two terms is left alone for review rather than arbitrated.
     """
     if not spec.vocabulary:
         return None
@@ -179,7 +214,28 @@ def _from_vocabulary(text: str, spec: AttributeSpec) -> str | None:
             return term
 
     prefixed = [t for t in spec.vocabulary if t.lower().startswith(lowered)]
-    return prefixed[0] if len(prefixed) == 1 else None
+    if len(prefixed) == 1:
+        return prefixed[0]
+
+    # Hyphens and spaces are the same separator in trade writing ("Cut Off" / "Cut-Off"),
+    # so both sides are flattened before comparison. Matching on whole words keeps
+    # "aluminum oxide" from matching a term that merely shares letters with it.
+    flat = _flatten(lowered)
+    contained = [term for term in spec.vocabulary if _contains_word(flat, _flatten(term))]
+    return contained[0] if len(contained) == 1 else None
+
+
+def _flatten(text: str) -> str:
+    """Lower-case, with hyphens and runs of whitespace collapsed to single spaces."""
+    return re.sub(r"[\s\-]+", " ", (text or "").strip().lower())
+
+
+def _contains_word(haystack: str, needle: str) -> bool:
+    """Whether `needle` appears in `haystack` as a whole word or phrase."""
+    if not needle:
+        return False
+    pattern = r"(?:^| )" + re.escape(needle) + r"(?:$| )"
+    return re.search(pattern, haystack) is not None
 
 
 def normalise_value(text: str, spec: AttributeSpec) -> Normalisation:
@@ -209,9 +265,9 @@ def normalise_value(text: str, spec: AttributeSpec) -> Normalisation:
 
     # Only accept a synonym the attribute actually permits, otherwise `ss` would resolve
     # to a stainless grade on an attribute where it means something else entirely.
-    synonym = SYNONYMS.get(stripped.lower())
-    if synonym is not None and (not spec.vocabulary or synonym in spec.vocabulary):
-        return Normalisation(original, synonym, "synonym")
+    for candidate in SYNONYMS.get(stripped.lower(), ()):
+        if not spec.vocabulary or candidate in spec.vocabulary:
+            return Normalisation(original, candidate, "synonym")
 
     return Normalisation(original, original, "unchanged")
 
@@ -221,16 +277,45 @@ def normalise_record(record: ProductRecord, schema: CategorySchema) -> ProductRe
 
     Spans survive untouched: normalisation changes how a value is written, not what
     supports it, and the citation must still point at the text the extractor read.
+
+    Also attaches the dimensional form to each value. That form was already being computed
+    - `assay.constraints.build_environment` does `value.normalized or normalize(...)` on
+    every constraint evaluation - and then discarded, so persisting it here is memoisation
+    rather than new behaviour, and the constraint results are unchanged by it.
+
+    What it buys is that a value now carries all three of its representations at once:
+    `raw` for audit, `normalized` for constraint algebra, and - via
+    `units.split_value_uom` at export - the pair of cells the delivery sheet wants. Those
+    are three different jobs and collapsing any two of them loses something. In particular
+    `normalized` must not be used for display: it converts to canonical units, so a bore
+    the catalog wrote as 1/2" would reach a customer as 12.7 millimeter.
     """
+    from crucible.assay.dimensional import normalize as to_dimensional
+
     values: list[AttributeValue] = []
     for value in record.values:
         spec = schema.get(value.attribute)
         if spec is None:
             values.append(value)
             continue
+
         result = normalise_value(value.raw, spec)
-        values.append(
-            value.model_copy(update={"raw": result.normalised}) if result.changed else value
-        )
+        update: dict[str, object] = {}
+        if result.changed:
+            update["raw"] = result.normalised
+
+        if value.normalized is None:
+            try:
+                normalized = to_dimensional(
+                    value.model_copy(update={"raw": result.normalised}), spec
+                )
+            except Exception:  # noqa: BLE001 - a value that will not normalise is not an error here
+                # Unparseable values are the dimensional verifier's business to report,
+                # not this function's to raise on. It sees the same value and says so.
+                normalized = None
+            if normalized is not None:
+                update["normalized"] = normalized
+
+        values.append(value.model_copy(update=update) if update else value)
 
     return record.model_copy(update={"values": values})

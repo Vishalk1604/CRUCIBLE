@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crucible — certified product data</title>
+<meta name="description" content="Turn sparse ERP descriptions into commerce-ready product data, with evidence for every value and a certified error rate." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/crucible.css" />
+<style>
+  /* ── hero ────────────────────────────────────────────────────────────── */
+  .hero { position: relative; padding: var(--s9) 0 var(--s8); overflow: hidden; }
+  /* The forge: a slow ember bloom behind the headline. Two blurred radials, no image. */
+  .forge {
+    position: absolute; inset: -30% -10% auto -10%; height: 130%; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(46% 40% at 22% 34%, color-mix(in srgb, var(--ember) 26%, transparent), transparent 68%),
+      radial-gradient(38% 34% at 74% 20%, color-mix(in srgb, var(--amber) 17%, transparent), transparent 66%);
+    filter: blur(46px); opacity: .85;
+    animation: drift 26s var(--ease) infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: translate3d(-2%, 0, 0) scale(1); }
+    to   { transform: translate3d(3%, -3%, 0) scale(1.09); }
+  }
+  .hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--s7); align-items: end; }
+  @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; align-items: start; } }
+
+  h1 .lit {
+    background: linear-gradient(96deg, var(--ember-bright), var(--amber-soft) 58%, var(--ember));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-style: italic;
+  }
+  .cta-row { display: flex; gap: var(--s3); flex-wrap: wrap; margin-top: var(--s6); }
+
+  /* asymmetric stat rail, right column of the hero */
+  .rail { border-left: 1px solid var(--line); padding-left: var(--s5); }
+  .rail .item + .item { margin-top: var(--s5); padding-top: var(--s5); border-top: 1px solid var(--line); }
+  .rail .n { font-family: var(--mono); font-size: 34px; font-weight: 500; letter-spacing: -.03em; line-height: 1; color: var(--fg); }
+  .rail .n .u { color: var(--primary); }
+  .rail .k { font-size: 13px; color: var(--fg-dim); margin-top: 6px; max-width: 28ch; }
+
+  /* ── marquee of checks ───────────────────────────────────────────────── */
+  .strip { border-block: 1px solid var(--line); background: var(--bg-raised); overflow: hidden; padding: var(--s3) 0; }
+  .marquee { display: flex; gap: var(--s6); width: max-content; animation: slide 34s linear infinite; }
+  .marquee span { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-faint); white-space: nowrap; }
+  .marquee span b { color: var(--primary); font-weight: 500; }
+  @keyframes slide { to { transform: translateX(-50%); } }
+  .strip:hover .marquee { animation-play-state: paused; }
+
+  /* ── problem: numbered editorial ─────────────────────────────────────── */
+  .claim { display: grid; grid-template-columns: 88px 1fr; gap: var(--s5); align-items: start; }
+  .claim + .claim { margin-top: var(--s6); padding-top: var(--s6); border-top: 1px solid var(--line); }
+  .claim .idx { font-family: var(--mono); font-size: 12px; color: var(--fg-faint); letter-spacing: .1em; padding-top: 8px; }
+  .claim h3 { margin-bottom: var(--s2); }
+  @media (max-width: 720px) { .claim { grid-template-columns: 1fr; gap: var(--s2); } }
+
+  /* ── proof card ──────────────────────────────────────────────────────── */
+  .proof { border: 1px solid var(--line-bright); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); box-shadow: var(--glow); }
+  .proof-head { padding: var(--s4) var(--s5); border-bottom: 1px solid var(--line); background: var(--bg-raised); display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
+  .proof-body { padding: var(--s5); }
+  .sig { display: grid; grid-template-columns: 178px 1fr; gap: var(--s4); padding: var(--s3) 0; align-items: start; font-size: 14px; }
+  .sig + .sig { border-top: 1px solid var(--line); }
+  .sig .why { color: var(--fg-dim); }
+  .sig.caught { background: color-mix(in srgb, var(--danger) 7%, transparent); margin-inline: calc(var(--s5) * -1); padding-inline: var(--s5); border-top-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
+  .verdict {
+    margin-top: var(--s5); padding: var(--s5); border-radius: var(--r);
+    background: var(--bg-raised); border: 1px solid var(--line);
+    font-family: var(--serif); font-size: clamp(18px, 2vw, 23px); line-height: 1.4;
+  }
+  .verdict em { color: var(--primary); }
+
+  /* ── comparison ──────────────────────────────────────────────────────── */
+  .versus { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .versus > div { padding: var(--s5); }
+  .versus .them { background: var(--bg-raised); color: var(--fg-dim); }
+  .versus .them h4 { color: var(--fg-dim); }
+  .versus ul { margin: var(--s4) 0 0; padding: 0; list-style: none; }
+  .versus li { position: relative; padding-left: 26px; margin-bottom: var(--s3); font-size: 14.5px; line-height: 1.5; }
+  .versus li::before { position: absolute; left: 0; top: -1px; font-family: var(--mono); font-size: 13px; }
+  .versus .them li::before { content: "×"; color: var(--fg-faint); }
+  .versus .us li::before { content: "→"; color: var(--primary); }
+  @media (max-width: 760px) { .versus { grid-template-columns: 1fr; } }
+
+  /* ── steps ───────────────────────────────────────────────────────────── */
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .flow .cell { background: var(--surface); padding: var(--s5); transition: background .3s var(--ease); }
+  .flow .cell:hover { background: var(--surface-hi); }
+  .flow .num { font-family: var(--mono); font-size: 11px; color: var(--primary); letter-spacing: .16em; }
+  .flow h4 { margin: var(--s3) 0 var(--s2); }
+  @media (max-width: 860px) { .flow { grid-template-columns: 1fr; } }
+
+  .closer { text-align: center; }
+  .closer h2 { max-width: 16ch; margin-inline: auto; }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M5 20h14M7 4h10l-2 7 3 6H6l3-6z"/></svg></span>
+      Crucible
+    </a>
+    <div class="nav-links">
+      <a href="#problem">The problem</a>
+      <a href="#proof">Proof</a>
+      <a href="#how">How it works</a>
+    </div>
+    <span class="grow"></span>
+    <a class="btn ghost small" href="/certify">Live guarantee</a>
+    <a class="btn small" href="/signin">Sign in</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="forge" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow" data-reveal>Product data enrichment, with a receipt</p>
+      <h1 data-reveal style="--d:70ms; margin-top: var(--s4)">
+        Every value carries<br />its evidence.<br />
+        <span class="lit">Every gap is deliberate.</span>
+      </h1>
+      <p class="lede" data-reveal style="--d:150ms; margin-top: var(--s5)">
+        Crucible turns sparse ERP descriptions into commerce-ready product data — then does
+        the part nobody else does. It tells you which values it could not stand behind, so
+        your reviewers stop checking the 90% that were already right.
+      </p>
+      <div class="cta-row" data-reveal style="--d:230ms">
+        <a class="btn" href="/signin">Enrich a catalog</a>
+        <a class="btn ghost" href="#proof">Watch it catch an error</a>
+      </div>
+    </div>
+
+    <div class="rail" data-reveal style="--d:300ms">
+      <div class="item">
+        <div class="n" data-count="252" data-prefix="6 → ">6 → 252</div>
+        <div class="k">input columns to a fully populated delivery sheet</div>
+      </div>
+      <div class="item">
+        <div class="n"><span data-count="1.4" data-dp="1">1.4</span><span class="u">s</span></div>
+        <div class="k">per product on one laptop GPU, entirely offline</div>
+      </div>
+      <div class="item">
+        <div class="n"><span data-count="3.2" data-dp="1">3.2</span><span class="u">%</span></div>
+        <div class="k">realised error on published values — down from 12.3% unverified</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="strip" aria-hidden="true">
+  <div class="marquee">
+    <span><b>01</b> dimensional algebra</span><span><b>02</b> cross-attribute constraints</span>
+    <span><b>03</b> controlled vocabulary</span><span><b>04</b> identity cross-reference</span>
+    <span><b>05</b> catalog coherence</span><span><b>06</b> ensemble disagreement</span>
+    <span><b>01</b> dimensional algebra</span><span><b>02</b> cross-attribute constraints</span>
+    <span><b>03</b> controlled vocabulary</span><span><b>04</b> identity cross-reference</span>
+    <span><b>05</b> catalog coherence</span><span><b>06</b> ensemble disagreement</span>
+  </div>
+</div>
+
+<section class="section" id="problem">
+  <div class="wrap narrow">
+    <p class="eyebrow" data-reveal>The problem</p>
+    <h2 data-reveal style="--d:60ms; margin-top: var(--s4)">
+      Generation is solved.<br />Knowing which tenth is wrong is not.
+    </h2>
+
+    <div style="margin-top: var(--s7)">
+      <div class="claim" data-reveal>
+        <div class="idx">01</div>
+        <div>
+          <h3>The confidence score is the problem</h3>
+          <p class="dim">
+            Frontier models already reach roughly 91% F1 on attribute extraction, and plenty
+            of vendors will sell you enrichment with a confidence number attached. That
+            number is the model's opinion of its own work — and it runs highest exactly
+            where the model is most certain and most wrong.
+          </p>
+        </div>
+      </div>
+
+      <div class="claim" data-reveal>
+        <div class="idx">02</div>
+        <div>
+          <h3>So nothing actually gets automated</h3>
+          <p class="dim">
+            Distributors still pay people to check <strong>100%</strong> of records. A tool
+            that is right nine times in ten, with no way to tell which nine, has not removed
+            the review. It has only moved it.
+          </p>
+        </div>
+      </div>
+
+      <div class="claim" data-reveal>
+        <div class="idx">03</div>
+        <div>
+          <h3>An untrusted proposer, checked by tools</h3>
+          <p class="dim">
+            Crucible never takes the model's word for anything. Every value it proposes is
+            examined by six independent checks — unit algebra, cross-attribute constraints,
+            controlled vocabularies, identity cross-referencing — and only what survives is
+            published. The rest is handed to you as a queue, with reasons.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="proof" style="background: var(--bg-raised); border-block: 1px solid var(--line);">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>Proof</p>
+    <h2 data-reveal style="--d:60ms; margin-top: var(--s4); max-width: 20ch">A real catch, from a real run</h2>
+    <p class="lede" data-reveal style="--d:120ms; margin-top: var(--s4)">
+      A ball bearing. The model proposed <code>C4</code> as the seal type. Here is what each
+      check had to say about it.
+    </p>
+
+    <div class="proof" data-reveal style="--d:180ms; margin-top: var(--s6)">
+      <div class="proof-head">
+        <span class="mono" style="font-weight:500">BRG-00027</span>
+        <span class="hint">bearing.ball · seal_type</span>
+        <span class="grow"></span>
+        <span class="tag">proposed&nbsp;<strong>C4</strong></span>
+      </div>
+      <div class="proof-body">
+        <div class="sig">
+          <span><span class="tag pass">ensemble 1.00</span></span>
+          <span class="why">Identical across three independent samples. The model agreed with itself every single time.</span>
+        </div>
+        <div class="sig">
+          <span><span class="tag pass">coherence 1.00</span></span>
+          <span class="why">“C4” appears in 10% of this category. Statistically it looks entirely unremarkable.</span>
+        </div>
+        <div class="sig">
+          <span><span class="tag abstain">dimensional abstained</span></span>
+          <span class="why">seal_type is a nominal attribute, not a physical quantity. Nothing here to check.</span>
+        </div>
+        <div class="sig">
+          <span><span class="tag abstain">constraint abstained</span></span>
+          <span class="why">No constraint in this category mentions seal_type.</span>
+        </div>
+        <div class="sig">
+          <span><span class="tag abstain">identity abstained</span></span>
+          <span class="why">Not an identity claim.</span>
+        </div>
+        <div class="sig caught">
+          <span><span class="tag fail">vocabulary 0.00</span></span>
+          <span class="why">
+            <strong style="color:var(--fg)">“C4” is not a term seal_type accepts.</strong>
+            This category allows <code>open</code>, <code>2RS rubber sealed both sides</code>,
+            <code>RS rubber sealed one side</code>, <code>2Z metal shielded both sides</code>,
+            <code>Z metal shielded one side</code>.
+          </span>
+        </div>
+
+        <p class="verdict">
+          C4 is a bearing <em>clearance</em> code, not a seal type. The model was consistent,
+          and consistently wrong. The statistics agreed with it. Only the check that knows
+          what this category actually sells caught it — because
+          <em>a model cannot correct an error it is certain about.</em>
+        </p>
+      </div>
+    </div>
+
+    <p class="hint" data-reveal style="margin-top: var(--s5); max-width: 72ch">
+      Three checks abstained, and that is reported rather than quietly folded in.
+      “Nothing to check” and “checked and satisfied” are different facts — merging them is
+      how a catalog ends up auto-publishing precisely the values nothing examined.
+    </p>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="wrap">
+    <p class="eyebrow" data-reveal>How it works</p>
+    <h2 data-reveal style="--d:60ms; margin-top: var(--s4); max-width: 22ch">Upload a CSV. Get a sheet you can defend.</h2>
+
+    <div class="flow" data-reveal style="--d:140ms; margin-top: var(--s6)">
+      <div class="cell"><div class="num">STEP 01</div><h4>Upload</h4><p class="hint" style="margin:0">Your ERP export. Part numbers, descriptions, brand columns — six columns is plenty.</p></div>
+      <div class="cell"><div class="num">STEP 02</div><h4>Classify</h4><p class="hint" style="margin:0">Each product is routed to a category, or honestly marked unclassified. No department invented to fill a cell.</p></div>
+      <div class="cell"><div class="num">STEP 03</div><h4>Extract</h4><p class="hint" style="margin:0">A local model proposes values. Anything it cannot ground in your source text is discarded before you see it.</p></div>
+      <div class="cell"><div class="num">STEP 04</div><h4>Verify</h4><p class="hint" style="margin:0">Six independent checks examine every value. Each one may pass, fail, doubt — or say it had nothing to check.</p></div>
+      <div class="cell"><div class="num">STEP 05</div><h4>Set your risk</h4><p class="hint" style="margin:0">One dial: the maximum error rate you can live with. Everything re-thresholds instantly.</p></div>
+      <div class="cell"><div class="num">STEP 06</div><h4>Download</h4><p class="hint" style="margin:0">The 252-column sheet as XLSX or CSV, plus an evidence file explaining every populated cell.</p></div>
+    </div>
+
+    <div class="versus" data-reveal style="margin-top: var(--s7)">
+      <div class="them">
+        <h4>Typical AI enrichment</h4>
+        <ul>
+          <li>Fills all 252 columns</li>
+          <li>Attaches a confidence score the model produced about itself</li>
+          <li>You still check every record, because you cannot tell which are wrong</li>
+          <li>A blank cell means the tool gave up</li>
+        </ul>
+      </div>
+      <div class="us">
+        <h4 style="color: var(--primary)">Crucible</h4>
+        <ul>
+          <li>Fills what the evidence supports</li>
+          <li>Every value carries a source quote and six independent verdicts</li>
+          <li>You check the queue, not the catalog</li>
+          <li><strong style="color:var(--fg)">A blank cell is a finding</strong> — the attribute applies, and nothing supported a value</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section closer">
+  <div class="wrap narrow">
+    <h2 data-reveal>Run it on your own catalog</h2>
+    <p class="lede" data-reveal style="--d:80ms; margin: var(--s4) auto 0">
+      Everything runs locally against a model on your own machine. No catalog data leaves
+      the building — which, for unreleased pricing and specifications, is not a convenience.
+      It is the requirement.
+    </p>
+    <div class="cta-row" data-reveal style="--d:150ms; justify-content:center">
+      <a class="btn" href="/signin">Get started</a>
+      <a class="btn ghost" href="/certify">See the guarantee</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap" style="display:flex; gap:var(--s4); flex-wrap:wrap; align-items:baseline">
+    <span class="mono" style="color:var(--fg-dim)">CRUCIBLE</span>
+    <span>Built for UniHack.</span>
+    <span class="grow"></span>
+    <span style="max-width: 46ch">Figures here come from measured runs. Anything drawn from a generated corpus is labelled as such in the app.</span>
+  </div>
+</footer>
+
+<script>
+  // Reveal on scroll. IntersectionObserver rather than a scroll handler so it costs
+  // nothing per frame, and rather than an animation library so the page still works with
+  // no network - which is the whole deployment story.
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const items = document.querySelectorAll("[data-reveal]");
+
+  if (reduced || !("IntersectionObserver" in window)) {
+    items.forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("in");
+        io.unobserve(e.target);          // reveal once; re-animating on scroll-back is noise
+        countUp(e.target);
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    items.forEach((el) => io.observe(el));
+  }
+
+  // Numbers count up when their panel arrives. Short and eased - a long count reads as a
+  // loading spinner rather than a figure.
+  function countUp(scope) {
+    if (reduced) return;
+    for (const el of scope.querySelectorAll("[data-count]")) {
+      const target = parseFloat(el.dataset.count);
+      const dp = parseInt(el.dataset.dp || "0", 10);
+      const prefix = el.dataset.prefix || "";
+      const start = performance.now();
+      const dur = 900;
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / dur);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = prefix + (target * eased).toFixed(dp);
+        if (t < 1) requestAnimationFrame(step);
+        else el.textContent = prefix + target.toFixed(dp);
+      };
+      requestAnimationFrame(step);
+    }
+  }
+
+  // Hairline under the nav only once the page has actually moved.
+  const nav = document.getElementById("nav");
+  const onScroll = () => nav.classList.toggle("scrolled", window.scrollY > 8);
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>

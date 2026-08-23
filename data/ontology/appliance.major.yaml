@@ -1,0 +1,130 @@
+# Major appliances — 65 rows, and the category the reference sheet itself uses.
+#
+#     KDTS324SPS Kitchen Aid Dishwasher SS
+#     EUF21CDBW Element 21CF Freezer - Upright
+#
+# Both example rows in the provided delivery format are dishwashers, so this category is
+# the one place the expected output can be read directly rather than inferred. Their
+# ATTRIBUTE_LABEL sequence is the model for the labels below: Series, Voltage Rating,
+# Amperage Rating, Mounting Type, Sound Level, Material, Color.
+#
+# Note what those rows do *not* fill. Both leave Plug Type blank; one leaves Color blank
+# and the other leaves Number of Wash Cycles blank. The labels are constant and the values
+# are not, which is the whole abstention argument in the format's own hand.
+
+category_id: appliance.major
+name: Major Appliances
+unspsc: "52141500"
+
+attributes:
+  - name: appliance_type
+    kind: nominal
+    label: Product Name
+    order: 1
+    required: true
+    vocabulary:
+      - dishwasher
+      - refrigerator
+      - freezer
+      - washer
+      - dryer
+      - range
+      - cooktop
+      - wall oven
+      - microwave
+      - range hood
+      - laundry center
+
+  - name: series
+    kind: text
+    label: Series
+    order: 2
+    description: Product line as the manufacturer writes it — "Professional Series", "Eco Series".
+
+  - name: capacity
+    kind: quantity
+    dimension: "[volume]"
+    canonical_unit: foot ** 3
+    display_uom: CF
+    label: Capacity
+    order: 3
+    description: Usable volume in cubic feet, written "21CF" in this catalog.
+
+  - name: voltage_rating
+    kind: quantity
+    dimension: "[electric_potential]"
+    canonical_unit: volt
+    display_uom: V
+    label: Voltage Rating
+    order: 4
+
+  - name: amperage_rating
+    kind: quantity
+    dimension: "[current]"
+    canonical_unit: ampere
+    display_uom: A
+    label: Amperage Rating
+    order: 5
+
+  - name: width
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Width
+    order: 6
+    required: true
+    description: Cabinet opening width — 24 in and 30 in dominate.
+
+  - name: mounting_type
+    kind: nominal
+    label: Mounting Type
+    order: 7
+    vocabulary:
+      - built-in
+      - freestanding
+      - leg
+      - slide-in
+      - under-counter
+      - portable
+
+  - name: fuel_type
+    kind: nominal
+    label: Fuel Type
+    order: 8
+    vocabulary:
+      - electric
+      - gas
+      - dual fuel
+      - induction
+
+  - name: sound_level
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    display_uom: dBA
+    label: Sound Level
+    order: 9
+    description: >
+      A-weighted sound pressure. Dimensionless here on purpose — dBA is a logarithmic
+      ratio, not a physical dimension pint can reason about, so the schema declares only
+      that it is a number and lets the display layer supply the unit.
+
+  - name: finish
+    kind: nominal
+    label: Color
+    order: 10
+    vocabulary:
+      - stainless steel
+      - black stainless
+      - white
+      - black
+      - slate
+      - panel ready
+
+constraints:
+  - voltage_rating > 0
+  - amperage_rating > 0
+  - width > 0
+  - capacity > 0
+  - sound_level > 0

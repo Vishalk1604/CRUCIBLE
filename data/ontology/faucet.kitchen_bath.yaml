@@ -1,0 +1,106 @@
+# Kitchen and bath sink faucets.
+#
+# Not present in the 1000-row sample. Added because the Solution Guide specifies this
+# category end to end (FAUCETS_LOV.xlsx) and calls it "an excellent scope for a demo",
+# which makes it among the likeliest to appear in an evaluation set.
+#
+# The permitted values below are ordinary trade vocabulary, not the client's LOV - that
+# file was never published. Anything outside these lists is flagged rather than accepted,
+# which is the correct behaviour either way.
+
+category_id: faucet.kitchen_bath
+name: Kitchen & Bath Sink Faucets
+unspsc: "30181500"
+
+attributes:
+  - name: product_name
+    kind: text
+    label: Product Name
+    order: 1
+    required: true
+    description: The noun that names the product, e.g. Kitchen Faucet, Lavatory Faucet.
+
+  - name: series
+    kind: text
+    label: Series
+    order: 2
+
+  - name: mounting_type
+    kind: nominal
+    label: Mounting Type
+    order: 3
+    vocabulary:
+      - deck mount
+      - wall mount
+      - single hole
+      - centerset
+      - widespread
+      - bridge
+
+  - name: handle_type
+    kind: nominal
+    label: Handle Type
+    order: 4
+    vocabulary:
+      - single handle
+      - double handle
+      - touchless
+      - lever
+      - cross
+      - knob
+
+  - name: spout_style
+    kind: nominal
+    label: Spout Style
+    order: 5
+    vocabulary:
+      - pull-down
+      - pull-out
+      - high arc
+      - gooseneck
+      - standard
+      - bar
+
+  - name: flow_rate
+    kind: quantity
+    dimension: "[length] ** 3 / [time]"
+    canonical_unit: gpm
+    display_uom: GPM
+    label: Flow Rate
+    order: 6
+    description: >
+      Rated flow, written "1.5 GPM" or "1.8 gpm". The US federal maximum for a lavatory
+      faucet is 2.2 GPM, which is what the constraint below bounds.
+
+  - name: finish
+    kind: text
+    label: Finish
+    order: 7
+    description: >
+      Free text rather than a vocabulary. Faucet finishes are a marketing palette that
+      changes per collection (Spotshield Stainless, Champagne Bronze, Matte Black), the
+      same reason deck-board colours are free text here.
+
+  - name: material
+    kind: nominal
+    label: Material
+    order: 8
+    vocabulary:
+      - brass
+      - stainless steel
+      - zinc
+      - plastic
+      - bronze
+
+  - name: hole_count
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    label: Number of Holes
+    order: 9
+
+constraints:
+  - flow_rate > 0
+  - flow_rate <= 3
+  - hole_count > 0
+  - hole_count <= 4

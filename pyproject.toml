@@ -17,6 +17,7 @@ dependencies = [
     "typer>=0.15",
     "rich>=13.9",
     "pyyaml>=6.0",
+    "openpyxl>=3.1",         # XLSX delivery file; CSV path works without it
     "ollama>=0.6.2",
     "google-genai>=2.19.0",
     "pymupdf>=1.28.2",
@@ -25,7 +26,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-api = ["fastapi>=0.115", "uvicorn[standard]>=0.32"]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    # File upload arrives as multipart form data; FastAPI raises at import without it.
+    "python-multipart>=0.0.9",
+]
 models = ["transformers>=4.46", "torch>=2.9.1", "sentence-transformers>=3.3"]
 dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.8"]
 
@@ -57,6 +63,15 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer declares CLI arguments as call-valued defaults; that is the framework's API,
+# not the mutable-default bug B008 exists to catch.
+"src/crucible/cli.py" = ["B008"]
+# FastAPI declares request parameters the same way - File(), Query(), Depends() are its
+# API, and the values are immutable markers rather than the shared mutable defaults B008
+# is about.
+"src/crucible/api/app.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

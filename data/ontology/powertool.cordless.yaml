@@ -1,0 +1,97 @@
+# Cordless power tools — 80 rows.
+#
+#     2563P-20 Milw M12 1/2" Stubby - Impact Wrench w/Pin Detent
+#     DCGG581B Dewalt 20V Grease Gun 2-Speed
+#
+# Battery platform and voltage are the same fact written two ways: M12 is 12 V, M18 is
+# 18 V, and Dewalt's 20V MAX is nominally 18 V. The schema keeps them as separate
+# attributes rather than deriving one from the other, because the description states
+# whichever the manufacturer's marketing prefers and deriving the other would be inference
+# presented as extraction.
+#
+# `kit_configuration` matters commercially more than it looks: "bare tool" and "kit" are
+# the same tool at very different prices, and getting it wrong is a pricing error rather
+# than a spec error.
+
+category_id: powertool.cordless
+name: Cordless Power Tools
+unspsc: "27112800"
+
+attributes:
+  - name: tool_type
+    kind: nominal
+    label: Tool Type
+    order: 1
+    required: true
+    vocabulary:
+      - impact wrench
+      - impact driver
+      - drill driver
+      - hammer drill
+      - circular saw
+      - reciprocating saw
+      - angle grinder
+      - grease gun
+      - ratchet
+      - nailer
+      - sander
+      - blower
+      - work light
+      - vacuum
+
+  - name: voltage_rating
+    kind: quantity
+    dimension: "[electric_potential]"
+    canonical_unit: volt
+    display_uom: V
+    label: Voltage
+    order: 2
+    required: true
+    description: Battery platform voltage — 12, 18 or 20 V nominal in this catalog.
+
+  - name: battery_platform
+    kind: text
+    label: Battery Platform
+    order: 3
+    description: Manufacturer's system name — M12, M18, 20V MAX, XGT, 18V LXT.
+
+  - name: kit_configuration
+    kind: nominal
+    label: Configuration
+    order: 4
+    required: true
+    vocabulary:
+      - bare tool
+      - kit
+      - combo kit
+
+  - name: drive_size
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Drive Size
+    order: 5
+    description: Anvil or chuck size — 1/4", 3/8", 1/2" — where the tool has one.
+
+  - name: no_load_speed
+    kind: quantity
+    dimension: "1 / [time]"
+    canonical_unit: 1 / minute
+    display_uom: RPM
+    label: No Load Speed
+    order: 6
+
+  - name: brushless
+    kind: nominal
+    label: Motor Type
+    order: 7
+    vocabulary:
+      - brushless
+      - brushed
+
+constraints:
+  - voltage_rating > 0
+  - voltage_rating <= 120
+  - drive_size > 0
+  - no_load_speed > 0

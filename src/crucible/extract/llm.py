@@ -77,6 +77,12 @@ class ExtractionStats:
     values_proposed: int = 0
     values_ungrounded: int = 0
     seconds: float = 0.0
+    #: Calls that never reached the model at all - connection refused, timeout, socket
+    #: closed. Tracked apart from `call_errors` because this is an infrastructure fault
+    #: rather than a model behaviour, and it invalidates a run rather than degrading it.
+    transport_failures: int = 0
+    #: Calls that reached the model but raised for some other reason.
+    call_errors: int = 0
 
     @property
     def values_kept(self) -> int:
@@ -86,8 +92,17 @@ class ExtractionStats:
         return (
             f"{self.calls} calls in {self.seconds:.1f}s; "
             f"{self.values_kept}/{self.values_proposed} values grounded, "
-            f"{self.empty_responses} empty, {self.parse_failures} unparseable"
+            f"{self.empty_responses} empty, {self.parse_failures} unparseable, "
+            f"{self.transport_failures} unreachable"
         )
+
+    @property
+    def reached_the_model(self) -> bool:
+        """Whether this run actually talked to a model.
+
+        False means the blanks in the output are an outage, not an assay.
+        """
+        return self.calls > 0 and self.transport_failures < self.calls
 
 
 def build_format(schema: CategorySchema) -> dict[str, Any]:
@@ -120,6 +135,38 @@ def build_prompt(description: str, schema: CategorySchema) -> str:
         lines.append(f"  - {spec.name}{hint}")
     lines += ["", f'Description: "{description}"']
     return "\n".join(lines)
+
+
+#: Exception type names that mean the request never reached a model. Matched by name
+#: rather than by class so this module keeps working whether the ollama client is backed
+#: by httpx, requests, or a plain socket, none of which it should have to import.
+_TRANSPORT_ERRORS = frozenset(
+    {
+        "ConnectError",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "WriteTimeout",
+        "PoolTimeout",
+        "ConnectionError",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
+        "RemoteProtocolError",
+        "ResponseNotRead",
+        "TimeoutException",
+    }
+)
+
+
+def _is_transport_failure(exc: BaseException) -> bool:
+    """Whether this exception means we never got to ask the model."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if type(current).__name__ in _TRANSPORT_ERRORS:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def _payload(message: Any) -> str:
@@ -216,8 +263,20 @@ class LLMExtractor:
                 # exhausts its budget reasoning and returns nothing at all.
                 think=False,
             )
-        except Exception:
-            logger.exception("extraction call failed for %s", raw.sku)
+        except Exception as exc:
+            # A transport failure is not the same event as a model that found nothing,
+            # and conflating them is uniquely dangerous for this system. Both produce an
+            # empty value list, which becomes a blank cell - and the entire product claim
+            # is that a blank cell means "we looked and could not establish this". If a
+            # dead Ollama silently produces the same blanks, the delivery file asserts
+            # careful abstention over what is really an outage. So it is counted
+            # separately and the caller is expected to refuse the run.
+            if _is_transport_failure(exc):
+                self.stats.transport_failures += 1
+                logger.error("cannot reach the model for %s: %s", raw.sku, exc)
+            else:
+                self.stats.call_errors += 1
+                logger.exception("extraction call failed for %s", raw.sku)
             return []
         finally:
             self.stats.seconds += time.monotonic() - started

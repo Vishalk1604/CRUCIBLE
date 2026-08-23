@@ -15,8 +15,73 @@ from crucible.ontology import SchemaError, fingerprint, get_schema, load_all, lo
 
 class TestShippedSchemas:
     def test_every_shipped_category_loads(self):
+        # A subset assertion rather than an equality one. This was pinned to exactly the
+        # three original categories, which made adding a category to the ontology a test
+        # failure - precisely backwards for a system whose whole point is that categories
+        # are data a product manager can add. The invariants asserted below are the
+        # valuable part and they apply to every category, however many there are.
         schemas = load_all()
-        assert set(schemas) == {"valve.ball", "fastener.hex_cap_screw", "bearing.ball"}
+        assert {"valve.ball", "fastener.hex_cap_screw", "bearing.ball"} <= set(schemas)
+        assert len(schemas) >= 3
+
+    def test_category_ids_match_their_filenames(self):
+        # A schema whose id disagrees with its filename loads fine and is then addressed
+        # by an id nobody can find on disk.
+        from crucible.ontology import ONTOLOGY_DIR
+
+        for path in ONTOLOGY_DIR.glob("*.yaml"):
+            assert load_schema(path).category_id == path.stem
+
+    def test_delivery_labels_are_unique_within_a_category(self):
+        # Two attributes sharing an ATTRIBUTE_LABEL would print the same header twice in
+        # the delivery sheet and make the second unreadable to any importer.
+        for category_id, schema in load_all().items():
+            labels = [a.sheet_label for a in schema.attributes]
+            dupes = sorted({label for label in labels if labels.count(label) > 1})
+            assert not dupes, f"{category_id} repeats delivery labels: {dupes}"
+
+    def test_every_declared_dimension_resolves_in_pint(self):
+        # A typo'd dimension is invisible until a value arrives: with a canonical_unit
+        # present the verifier resolves the unit instead, so the bad dimension string is
+        # never exercised - right up until someone removes the canonical_unit and the
+        # fallback path raises in production.
+        from crucible.schema import ValueKind
+        from crucible.units import registry
+
+        for schema in load_all().values():
+            for attr in schema.attributes:
+                if attr.kind not in (ValueKind.QUANTITY, ValueKind.RANGE):
+                    continue
+                registry().get_dimensionality(attr.dimension)
+                registry().Unit(attr.canonical_unit)
+
+    def test_declared_dimension_agrees_with_canonical_unit(self):
+        # The two must describe the same physics. "[length]" with canonical_unit "psi"
+        # would load, and then every value of that attribute would fail dimensionally
+        # while the schema looked fine.
+        from crucible.schema import ValueKind
+        from crucible.units import registry
+
+        for category_id, schema in load_all().items():
+            for attr in schema.attributes:
+                if attr.kind not in (ValueKind.QUANTITY, ValueKind.RANGE):
+                    continue
+                declared = registry().get_dimensionality(attr.dimension)
+                from_unit = registry().Unit(attr.canonical_unit).dimensionality
+                assert declared == from_unit, (
+                    f"{category_id}.{attr.name}: dimension {attr.dimension!r} and "
+                    f"canonical_unit {attr.canonical_unit!r} disagree"
+                )
+
+    def test_attribute_template_order_is_stable(self):
+        # ATTRIBUTE_LABEL n is a positional contract. If ordering were unstable, an
+        # unrelated edit would shuffle a customer's columns and make every downstream
+        # diff of the catalog meaningless.
+        for schema in load_all().values():
+            first = [a.name for a in schema.template()]
+            assert first == [a.name for a in schema.template()]
+            orders = [a.order for a in schema.template() if a.order is not None]
+            assert orders == sorted(orders)
 
     def test_shipped_categories_declare_constraints(self):
         # A category with no constraints gets no benefit from the constraint verifier,

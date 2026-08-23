@@ -30,16 +30,19 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from crucible.assay.base import Verifier
 from crucible.assay.constraints import ConstraintVerifier
 from crucible.assay.dimensional import DimensionalVerifier
+from crucible.assay.identity import IdentityVerifier
+from crucible.assay.vocabulary import VocabularyVerifier
 from crucible.certify.conformal import ThresholdSelection, apply_threshold, select_threshold
 from crucible.certify.scorer import LearnedScorer, discrimination
 from crucible.corpus.faults import InjectedFault, inject_all
 from crucible.corpus.generate import GoldRecord, generate_corpus
 from crucible.extract.rules import extract
-from crucible.ontology import fingerprint, load_all
+from crucible.ontology import GENERIC_CATEGORY_ID, fingerprint, generic_schema, load_all
 from crucible.schema import AttributeSpec, CategorySchema, ProductRecord, ValueKind
 from crucible.units import UnitParseError, parse_quantity, registry
 from crucible.verdict import Assay, CalibrationStats, Certificate, CertifiedValue, Decision
@@ -87,11 +90,16 @@ def values_agree(got: str, want: str, spec: AttributeSpec) -> bool:
 def build_verifiers(schema: CategorySchema) -> list[Verifier]:
     """The verifier suite for one category.
 
-    Only the model-free verifiers are wired so far. Entailment, catalog coherence and
-    ensemble disagreement join here once the extractor produces model output for them to
-    check.
+    The three that need neither calibration nor a corpus. Catalog coherence and ensemble
+    disagreement join in `api/session.py`, where the corpus profile and the resampled
+    passes they depend on actually exist.
     """
-    return [DimensionalVerifier(), ConstraintVerifier(schema)]
+    return [
+        DimensionalVerifier(),
+        ConstraintVerifier(schema),
+        IdentityVerifier(),
+        VocabularyVerifier(),
+    ]
 
 
 @dataclass
@@ -252,6 +260,125 @@ def run(
         auroc=auroc,
         n_test=len(test),
         faults=faults,
+        simulated=True,
+    )
+
+
+def run_catalog(
+    input_path: Path,
+    alpha: float = 0.05,
+    delta: float = 0.05,
+    limit: int | None = None,
+    fault_rate: float = 0.12,
+    seed: int = 20260820,
+    model: str = "qwen3-vl:8b",
+    use_llm: bool = True,
+) -> RunResult:
+    """Calibrate on the real catalog rather than on generated products.
+
+    `run()` calibrates against a generated corpus whose answer key is known exactly.
+    Real distributor rows have no answer key, so this builds one the only honest way
+    available: extract cleanly, treat that extraction as a pseudo-reference, then inject
+    known faults into a copy. Every injected fault is a value we know is wrong, and every
+    untouched value is one we believe is right.
+
+    The label noise this introduces is real and worth stating plainly. The pseudo-reference
+    contains whatever the extractor itself got wrong, so a value the extractor consistently
+    misreads is labelled "correct" and any verifier that flags it is scored as raising a
+    false alarm.
+
+    That noise is **one-directional**, which is why the design is acceptable. It can only
+    make a verifier look worse than it is: it deflates AUROC and inflates realised error.
+    It cannot manufacture a guarantee that does not hold. Being wrong in the conservative
+    direction is the right way to be wrong for a system whose product is a bound, and it
+    is why every artifact from this path is labelled SIMULATED.
+
+    Replacing the pseudo-reference with hand labels is Step 5.4 of the plan; this exists so
+    the machinery is calibrated and demonstrable before those labels are collected.
+    """
+    from crucible.enrich import enrich as run_enrich
+
+    result = run_enrich(input_path, limit=limit, model=model if use_llm else None, use_llm=use_llm)
+
+    schemas = dict(load_all())
+    schemas[GENERIC_CATEGORY_ID] = generic_schema()
+
+    # The pseudo-reference: what the clean extraction produced, packed into the same
+    # GoldRecord shape `assay_values` and `values_agree` already consume, so neither needs
+    # a real-data variant. `recoverable` is every extracted attribute, because a value that
+    # was extracted from the description is by construction supported by it.
+    gold: dict[str, GoldRecord] = {}
+    for record in result.records:
+        truth = {v.attribute: v.raw for v in record.values}
+        gold[record.sku] = GoldRecord(
+            raw=record.raw,
+            truth=truth,
+            category_id=record.category_id or GENERIC_CATEGORY_ID,
+            clean_description=record.raw.description,
+            recoverable=set(truth),
+        )
+
+    damaged, faults = inject_all(result.records, schemas, rate=fault_rate, seed=seed)
+    scored = assay_values(damaged, gold, schemas)
+
+    if not scored:
+        raise RuntimeError(
+            "no scorable values produced from the catalog; check that extraction ran "
+            "(use_llm) and that routed categories have schemas"
+        )
+
+    fit = [s for i, s in enumerate(scored) if i % 3 == 0]
+    calibrate = [s for i, s in enumerate(scored) if i % 3 == 1]
+    test = [s for i, s in enumerate(scored) if i % 3 == 2]
+
+    verifier_names = sorted({sig.verifier for s in scored for sig in s.assay.signals})
+    scorer = LearnedScorer(verifier_names)
+    scorer.fit([s.assay for s in fit], [s.is_error for s in fit])
+    for split in (calibrate, test):
+        scorer.annotate([s.assay for s in split])
+
+    selection = select_threshold(
+        [s.assay.nonconformity for s in calibrate],
+        [s.is_error for s in calibrate],
+        alpha=alpha,
+        delta=delta,
+    )
+
+    certified = [
+        CertifiedValue(
+            value=_placeholder_value(s),
+            assay=s.assay,
+            decision=decision,
+            threshold=selection.threshold,
+        )
+        for s, decision in zip(
+            test, apply_threshold([s.assay for s in test], selection.threshold), strict=True
+        )
+    ]
+
+    published = [
+        s for s, c in zip(test, certified, strict=True) if c.decision is Decision.AUTO_PUBLISH
+    ]
+    realized = sum(s.is_error for s in published) / len(published) if published else 0.0
+    baseline = sum(s.is_error for s in test) / len(test) if test else 0.0
+    auroc = discrimination([s.assay.nonconformity for s in test], [s.is_error for s in test])
+
+    certificate = None
+    if selection.feasible and selection.stats:
+        certificate = _build_certificate(selection.stats, certified, schemas, verifier_names, seed)
+        certificate.proposer_model = model
+
+    return RunResult(
+        certificate=certificate,
+        selection=selection,
+        certified=certified,
+        realized_error=realized,
+        baseline_error=baseline,
+        auroc=auroc,
+        n_test=len(test),
+        faults=faults,
+        # Real products, but injected faults supply the labels. Not a clean read of the
+        # model's own error rate, and must never be presented as one.
         simulated=True,
     )
 

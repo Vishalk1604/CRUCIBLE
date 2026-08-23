@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Workspace — Crucible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/crucible.css" />
+<style>
+  /* ── stage header ─────────────────────────────────────────────────────── */
+  .stage-head { margin-bottom: var(--s6); }
+  .stage-head h1 { font-size: clamp(32px, 4.4vw, 52px); margin-top: var(--s3); }
+
+  /* ── drop zone ────────────────────────────────────────────────────────── */
+  .drop {
+    position: relative; overflow: hidden;
+    border: 1px dashed var(--line-bright); border-radius: var(--r-lg);
+    padding: var(--s8) var(--s5); text-align: center; background: var(--surface);
+    transition: border-color .25s var(--ease), background .25s var(--ease), transform .25s var(--ease-out);
+  }
+  .drop::before {
+    content: ""; position: absolute; inset: -40% -10% auto -10%; height: 120%; pointer-events: none;
+    background: radial-gradient(42% 46% at 50% 30%, color-mix(in srgb, var(--ember) 15%, transparent), transparent 70%);
+    filter: blur(44px); opacity: 0; transition: opacity .35s var(--ease);
+  }
+  .drop.over { border-color: var(--primary); border-style: solid; transform: scale(1.005); }
+  .drop.over::before { opacity: 1; }
+  .drop > * { position: relative; }
+  .drop input[type=file] { display: none; }
+  .drop .icon {
+    width: 54px; height: 54px; margin: 0 auto var(--s4); border-radius: 14px;
+    display: grid; place-items: center; color: var(--primary);
+    background: var(--surface-hi); border: 1px solid var(--line-bright);
+  }
+  .drop .icon svg { width: 24px; height: 24px; }
+
+  .opts { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; justify-content: center; margin-top: var(--s6); font-size: 13.5px; color: var(--fg-dim); }
+  .opts select {
+    font: inherit; font-size: 13.5px; color: var(--fg); padding: 8px 12px; min-height: 40px;
+    border-radius: var(--r-sm); border: 1px solid var(--line-bright); background: var(--bg-raised);
+  }
+  .opts select:focus { outline: none; border-color: var(--primary); }
+
+  /* ── progress ─────────────────────────────────────────────────────────── */
+  .bar { height: 6px; background: var(--surface-hi); border-radius: 99px; overflow: hidden; }
+  .bar > i {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--ember-deep), var(--ember), var(--amber));
+    background-size: 220% 100%;
+    transition: width .45s var(--ease-out);
+    animation: shimmer 2.4s linear infinite;
+  }
+  @keyframes shimmer { to { background-position: -220% 0; } }
+
+  .pulse { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); animation: beat 1.5s var(--ease) infinite; }
+  @keyframes beat { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.72); } }
+
+  /* ── metrics ──────────────────────────────────────────────────────────── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .metrics .m { background: var(--surface); padding: var(--s4) var(--s5); }
+  .metrics .n { font-family: var(--mono); font-size: 27px; font-weight: 500; letter-spacing: -.03em; line-height: 1.1; }
+  .metrics .k { font-family: var(--mono); font-size: 10.5px; color: var(--fg-faint); text-transform: uppercase; letter-spacing: .12em; margin-top: 5px; }
+
+  /* ── product rows ─────────────────────────────────────────────────────── */
+  .rowcard { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; transition: border-color .2s var(--ease); }
+  .rowcard + .rowcard { margin-top: var(--s2); }
+  .rowcard:hover { border-color: var(--line-bright); }
+  .rowcard[open] { border-color: var(--line-bright); }
+  .rowcard summary { padding: var(--s3) var(--s4); cursor: pointer; display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; list-style: none; }
+  .rowcard summary::-webkit-details-marker { display: none; }
+  .rowcard summary::after { content: "+"; font-family: var(--mono); color: var(--fg-faint); margin-left: auto; transition: transform .25s var(--ease); }
+  .rowcard[open] summary::after { transform: rotate(45deg); }
+  .rowcard summary:hover { background: var(--surface-hi); }
+  .rowcard .sku { font-family: var(--mono); font-weight: 500; font-size: 13.5px; }
+  .rowcard .desc { color: var(--fg-dim); font-size: 13px; flex: 1 1 240px; overflow-wrap: anywhere; }
+  .rowcard .body { padding: 0 var(--s4) var(--s4); }
+  .fill { font-family: var(--mono); font-size: 11.5px; color: var(--fg-faint); }
+  .fill b { color: var(--fg); font-weight: 500; }
+  .newrow { animation: land .5s var(--ease-out) both; }
+  @keyframes land { from { opacity: 0; transform: translateY(10px); } }
+
+  /* ── downloads ────────────────────────────────────────────────────────── */
+  .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: var(--s3); }
+  .dl {
+    position: relative; display: flex; gap: var(--s3); align-items: center; text-decoration: none; color: inherit;
+    border: 1px solid var(--line); border-radius: var(--r); padding: var(--s4);
+    background: var(--surface); overflow: hidden;
+    transition: border-color .22s var(--ease), transform .22s var(--ease-out);
+  }
+  .dl:hover { border-color: var(--primary); transform: translateY(-2px); color: inherit; }
+  .dl .fmt { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--primary); }
+  .dl .t { font-weight: 500; font-size: 14.5px; margin-top: 3px; }
+  .dl .s { font-size: 12.5px; color: var(--fg-dim); margin-top: 2px; }
+  .dl[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+
+  @media (max-width: 700px) { .stage-head h1 { font-size: 30px; } }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="/">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M5 20h14M7 4h10l-2 7 3 6H6l3-6z"/></svg></span>
+      Crucible
+    </a>
+    <span class="grow"></span>
+    <span class="mono" id="workspace" style="font-size:12.5px; color:var(--fg-dim)">Workspace</span>
+    <a class="btn ghost small" href="/certify">Guarantee</a>
+    <a class="btn ghost small" href="/">Sign out</a>
+  </div>
+</nav>
+
+<main class="wrap" style="padding-top: var(--s7); padding-bottom: var(--s9)">
+
+  <!-- ═══ 1 · UPLOAD ═══ -->
+  <section id="stage-upload">
+    <div class="stage-head">
+      <p class="eyebrow">New enrichment</p>
+      <h1>Upload your catalog</h1>
+      <p class="lede" style="margin-top: var(--s4)">
+        A CSV export with part numbers and descriptions. Column names are matched flexibly —
+        six columns is enough to work with.
+      </p>
+    </div>
+
+    <div class="drop" id="drop">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2"/>
+        </svg>
+      </div>
+      <h3 style="font-family: var(--serif); font-size: 24px">Drop a CSV here</h3>
+      <p class="hint" style="margin-top: var(--s2)">or</p>
+      <div style="display:flex; gap:var(--s3); justify-content:center; flex-wrap:wrap; margin-top: var(--s3)">
+        <button class="btn" id="choose">Choose a file</button>
+        <button class="btn ghost" id="use-sample">Use the sample catalog</button>
+      </div>
+      <input type="file" id="file" accept=".csv,text/csv" />
+
+      <div class="opts">
+        <label for="limit" style="margin:0">Process</label>
+        <select id="limit">
+          <option value="50" selected>first 50 products · ~1 min</option>
+          <option value="150">first 150 products · ~4 min</option>
+          <option value="300">first 300 products · ~8 min</option>
+          <option value="">the whole file</option>
+        </select>
+      </div>
+      <p class="hint" id="sample-note" style="margin-top: var(--s4); font-size: 12.5px"></p>
+    </div>
+
+    <div class="banner bad" id="upload-error" hidden style="margin-top: var(--s4)">
+      <span class="ico" aria-hidden="true">!</span><div id="upload-error-text"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 2 · PROGRESS ═══ -->
+  <section id="stage-progress" hidden>
+    <div class="stage-head">
+      <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>&nbsp;Processing</p>
+      <h1>Working through your catalog</h1>
+      <p class="hint" id="prog-file" style="margin-top: var(--s3)"></p>
+    </div>
+
+    <div class="card" style="margin-bottom: var(--s6)">
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+      <div style="display:flex; gap:var(--s4); flex-wrap:wrap; margin-top: var(--s4); align-items:baseline">
+        <strong class="mono" id="prog-count" role="status" aria-live="polite" style="font-size:19px">0 / 0</strong>
+        <span class="hint" id="prog-state">starting…</span>
+        <span class="grow"></span>
+        <span class="hint mono" id="prog-eta"></span>
+      </div>
+    </div>
+
+    <div class="banner bad" id="job-error" hidden style="margin-bottom: var(--s5)">
+      <span class="ico" aria-hidden="true">!</span><div id="job-error-text"></div>
+    </div>
+
+    <h3 style="margin-bottom: var(--s3)">Results as they finish</h3>
+    <div id="live-rows"></div>
+  </section>
+
+  <!-- ═══ 3 · DONE ═══ -->
+  <section id="stage-done" hidden>
+    <div class="stage-head">
+      <p class="eyebrow">Complete</p>
+      <h1>Your catalog is enriched</h1>
+    </div>
+
+    <div class="metrics" style="margin-bottom: var(--s6)">
+      <div class="m"><div class="n" id="m-products">—</div><div class="k">products</div></div>
+      <div class="m"><div class="n" id="m-cells">—</div><div class="k">cells filled</div></div>
+      <div class="m"><div class="n" id="m-routed">—</div><div class="k">classified</div></div>
+      <div class="m"><div class="n" id="m-rate">—</div><div class="k">sec / product</div></div>
+      <div class="m"><div class="n" id="m-elapsed">—</div><div class="k">total time</div></div>
+    </div>
+
+    <h3 style="margin-bottom: var(--s3)">Download</h3>
+    <div class="dl-grid" style="margin-bottom: var(--s6)">
+      <a class="dl" id="dl-xlsx" href="#"><div><div class="fmt">XLSX</div><div class="t">Delivery sheet</div><div class="s">252 columns, Excel-safe fractions</div></div></a>
+      <a class="dl" id="dl-csv" href="#"><div><div class="fmt">CSV</div><div class="t">Delivery sheet</div><div class="s">Same columns, for pipelines</div></div></a>
+      <a class="dl" id="dl-evidence" href="#"><div><div class="fmt">CSV</div><div class="t">Evidence sidecar</div><div class="s">Every cell, its source and verdicts</div></div></a>
+      <a class="dl" id="dl-cert" href="/certify"><div><div class="fmt">LIVE</div><div class="t">Guarantee</div><div class="s">The certified error rate</div></div></a>
+    </div>
+
+    <div class="banner" style="margin-bottom: var(--s6)">
+      <span class="ico" aria-hidden="true">▲</span>
+      <div>
+        <strong>Read the blanks.</strong> Where a row shows an attribute label with no value,
+        that attribute applies to the product and nothing in the source supported a value for
+        it. Those cells are empty on purpose — filling them would mean inventing data, and a
+        wrong value costs far more than one review.
+      </div>
+    </div>
+
+    <h3 style="margin-bottom: var(--s3)">Enriched products</h3>
+    <div id="done-rows"></div>
+    <p class="hint" id="done-more" style="margin-top: var(--s3)"></p>
+
+    <div style="margin-top: var(--s7)">
+      <button class="btn ghost" id="again">Enrich another catalog</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+let POLL = null;
+let RENDERED = 0;
+
+try {
+  const ws = sessionStorage.getItem("crucible.workspace");
+  if (ws) $("workspace").textContent = ws;
+} catch (_) {}
+
+const nav = $("nav");
+addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 8), { passive: true });
+
+function stage(name) {
+  for (const s of ["upload", "progress", "done"]) $("stage-" + s).hidden = s !== name;
+  scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ---------- sample catalog ---------- */
+fetch("/api/sample").then((r) => r.json()).then((s) => {
+  if (!s.available) { $("use-sample").disabled = true; return; }
+  $("sample-note").textContent =
+    `Sample: ${s.filename} — ${s.rows.toLocaleString()} real distributor products.`;
+}).catch(() => { $("use-sample").disabled = true; });
+
+/* ---------- upload ---------- */
+const drop = $("drop");
+$("choose").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", (e) => { if (e.target.files[0]) start(e.target.files[0]); });
+$("use-sample").addEventListener("click", () => start(null, true));
+$("again").addEventListener("click", () => {
+  RENDERED = 0; $("live-rows").innerHTML = ""; $("done-rows").innerHTML = ""; stage("upload");
+});
+
+["dragenter", "dragover"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) start(f);
+});
+
+async function start(file, useSample = false) {
+  $("upload-error").hidden = true;
+  const limit = $("limit").value;
+  const qs = new URLSearchParams();
+  if (limit) qs.set("limit", limit);
+  if (useSample) qs.set("use_sample", "true");
+
+  let res;
+  try {
+    const body = new FormData();
+    if (file) body.append("file", file);
+    res = await fetch(`/api/jobs?${qs}`, { method: "POST", body });
+  } catch (err) {
+    return fail(`Could not reach the server: ${err.message}`);
+  }
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    return fail(detail.detail || `Upload failed (${res.status})`);
+  }
+
+  const { id } = await res.json();
+  RENDERED = 0;
+  $("live-rows").innerHTML = "";
+  $("job-error").hidden = true;
+  $("prog-file").textContent = useSample ? "Sample catalog" : file.name;
+  stage("progress");
+  poll(id);
+}
+
+function fail(message) {
+  $("upload-error-text").textContent = message;
+  $("upload-error").hidden = false;
+}
+
+/* ---------- polling ---------- */
+function poll(id) {
+  clearInterval(POLL);
+  const tick = async () => {
+    let job;
+    try { job = await (await fetch(`/api/jobs/${id}`)).json(); } catch (_) { return; }
+    render(job);
+    if (job.state === "done" || job.state === "failed") {
+      clearInterval(POLL);
+      if (job.state === "done") finish(id, job);
+    }
+  };
+  tick();
+  POLL = setInterval(tick, 1200);
+}
+
+const STATE_TEXT = {
+  queued: "queued",
+  preflight: "checking the model is reachable…",
+  running: "extracting and verifying",
+  certifying: "writing the delivery file…",
+  done: "complete",
+  failed: "failed",
+};
+
+function render(job) {
+  const done = job.total ? (100 * job.processed) / job.total : 0;
+  $("bar").style.width = done.toFixed(1) + "%";
+  $("prog-count").textContent = `${job.processed} / ${job.total || "…"}`;
+  $("prog-state").textContent =
+    (STATE_TEXT[job.state] || job.state) +
+    (job.state === "running" && job.message ? ` · ${job.message}` : "");
+  $("prog-eta").textContent = job.etaSeconds != null ? `~${fmtDuration(job.etaSeconds)} left` : "";
+
+  if (job.error) {
+    $("job-error-text").textContent = job.error;
+    $("job-error").hidden = false;
+  }
+
+  // Append only what is new. Re-rendering the list each poll would fight the user's scroll
+  // position and slam shut anything they had opened.
+  const fresh = job.rows.slice(RENDERED);
+  if (fresh.length) {
+    $("live-rows").insertAdjacentHTML("beforeend", fresh.map((r) => rowCard(r, true)).join(""));
+    RENDERED = job.rows.length;
+  }
+}
+
+function finish(id, job) {
+  const s = job.stats || {};
+  countTo($("m-products"), s.products || 0);
+  countTo($("m-cells"), s.cellsPopulated || 0);
+  $("m-routed").textContent = s.products ? `${Math.round((100 * s.routed) / s.products)}%` : "—";
+  $("m-rate").textContent = s.secondsPerProduct != null ? s.secondsPerProduct.toFixed(2) : "—";
+  $("m-elapsed").textContent = fmtDuration(job.elapsed);
+
+  const have = new Set(job.outputs || []);
+  link("dl-xlsx", have.has("xlsx"), `/api/jobs/${id}/download/xlsx`);
+  link("dl-csv", have.has("csv"), `/api/jobs/${id}/download/csv`);
+  link("dl-evidence", have.has("evidence"), `/api/jobs/${id}/download/evidence`);
+
+  $("done-rows").innerHTML = job.rows.map((r) => rowCard(r, false)).join("");
+  $("done-more").textContent =
+    job.rows.length < (s.products || 0)
+      ? `Showing ${job.rows.length} of ${s.products} products. The download contains all of them.`
+      : "";
+  stage("done");
+}
+
+function link(id, ok, href) {
+  const el = $(id);
+  el.setAttribute("aria-disabled", ok ? "false" : "true");
+  if (ok) el.href = href;
+}
+
+function countTo(el, target) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = target.toLocaleString(); return;
+  }
+  const start = performance.now(), dur = 700;
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - t, 3))).toLocaleString();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- one product ---------- */
+function rowCard(row, isNew) {
+  const path = [row.dept, row.klass, row.fine].filter(Boolean).join(" › ");
+  const attrs = (row.attributes || []).map((a) => {
+    const filled = a.value !== "";
+    return (
+      `<tr><td>${esc(a.label)}</td>` +
+      (filled
+        ? `<td class="mono">${esc(a.value)}</td><td class="mono">${esc(a.uom)}</td>` +
+          `<td>${a.quote ? `<span class="quote">${esc(a.quote)}</span>` : ""}</td>`
+        : `<td class="cell-empty" colspan="2">not established</td>` +
+          `<td><span class="tag abstain">no evidence</span></td>`) +
+      `</tr>`
+    );
+  }).join("");
+
+  return (
+    `<details class="rowcard${isNew ? " newrow" : ""}"><summary>` +
+    `<span class="sku">${esc(row.sku)}</span>` +
+    `<span class="desc">${esc(row.description)}</span>` +
+    (path ? `<span class="tag">${esc(path)}</span>` : `<span class="tag abstain">unclassified</span>`) +
+    `<span class="fill"><b>${row.filled}</b>/${row.total} values</span>` +
+    `</summary><div class="body"><div class="scroll-x"><table>` +
+    `<thead><tr><th>Attribute</th><th>Value</th><th>Unit</th><th>Source</th></tr></thead>` +
+    `<tbody>${attrs}</tbody></table></div></div></details>`
+  );
+}
+
+function fmtDuration(seconds) {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return s % 60 ? `${m}m ${s % 60}s` : `${m}m`;
+}
+</script>
+</body>
+</html>

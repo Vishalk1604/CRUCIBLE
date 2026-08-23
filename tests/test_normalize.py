@@ -167,3 +167,55 @@ class TestRecords:
         record.values.append(AttributeValue(attribute="not_in_schema", raw="x"))
         result = normalise_record(record, get_schema("bearing.ball"))
         assert any(v.attribute == "not_in_schema" for v in result.values)
+
+
+class TestVocabularyContainment:
+    """Catalogs qualify their terms; the vocabulary lists the bare ones.
+
+    This data writes "Metal Cut-Off" where the vocabulary says `cut-off`, and
+    "Grinding Wheel" where it says `grinding`. Resolving those is worth real compliance
+    points - but only while it stays unable to arbitrate between two candidates.
+    """
+
+    @pytest.fixture
+    def wheel_type(self):
+        return get_schema("abrasive.cutoff_disc").get("wheel_type")
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("Metal Cut-Off", "cut-off"),
+            ("Cut Off Disc", "cut-off"),
+            ("Cut-Off", "cut-off"),
+            ("Grinding Wheel", "grinding"),
+        ],
+    )
+    def test_a_qualified_term_resolves_to_the_bare_one(self, wheel_type, raw, expected):
+        assert normalise_value(raw, wheel_type).normalised == expected
+
+    def test_hyphens_and_spaces_are_the_same_separator(self, wheel_type):
+        assert (
+            normalise_value("Cut Off", wheel_type).normalised
+            == normalise_value("Cut-Off", wheel_type).normalised
+        )
+
+    def test_a_value_containing_no_term_is_left_alone(self, wheel_type):
+        assert normalise_value("Dual Metal", wheel_type).normalised == "Dual Metal"
+
+    def test_a_value_containing_two_terms_is_left_for_review(self):
+        # The safety property: two candidates means ambiguous, and arbitrating between
+        # them would manufacture a confident wrong answer.
+        spec = get_schema("abrasive.cutoff_disc").get("material_application")
+        assert normalise_value("Stainless Steel Metal", spec).normalised == "Stainless Steel Metal"
+
+    def test_it_does_not_rescue_a_value_in_the_wrong_field(self):
+        # 'Metal Cut-Off Disc' proposed as an abrasive *grain* is a genuine extraction
+        # error. Containment must not launder it into a valid-looking value.
+        spec = get_schema("abrasive.cutoff_disc").get("abrasive_grain")
+        assert normalise_value("Metal Cut-Off Disc", spec).normalised == "Metal Cut-Off Disc"
+
+    def test_matching_is_on_whole_words(self):
+        from crucible.schema import AttributeSpec, ValueKind
+
+        spec = AttributeSpec(name="x", kind=ValueKind.NOMINAL, vocabulary=["tin"])
+        assert normalise_value("stainless", spec).normalised == "stainless"

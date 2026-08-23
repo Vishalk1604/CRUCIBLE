@@ -1,260 +1,586 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  The judge-facing surface.
+
+  Design intent, in priority order:
+    1. The dial is the product. It gets the most space and the first read.
+    2. The refusal state is designed, not defaulted. Most demos have no such state.
+    3. A populated label beside an empty value is the single most important pixel here,
+       so it is shown as an actual sheet row and it is explained on click.
+    4. Abstention never looks like approval. Different glyph, different weight, different
+       word - never colour alone, which fails for the ~8% of men with CVD anyway.
+
+  Self-contained on purpose: no build step, no CDN, no framework. It is served by FastAPI
+  from static/ and has to keep working on a laptop with the wifi off.
+-->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Crucible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
+
 <style>
   :root {
-    --bg: #0e1116; --panel: #161b22; --line: #262c36;
-    --ink: #e6edf3; --dim: #8b949e; --faint: #6e7681;
-    --ok: #3fb950; --warn: #d29922; --bad: #f85149; --accent: #58a6ff;
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --primary: #1e40af;
+    --on-primary: #ffffff;
+    --secondary: #3b82f6;
+    --accent: #b45309;
+    --bg: #f8fafc;
+    --fg: #14203f;
+    --card: #ffffff;
+    --card-fg: #14203f;
+    --muted: #e9eef6;
+    --muted-fg: #475569;
+    --border: #cddcf3;
+    --danger: #b91c1c;
+    --ok: #15803d;
+    --warn: #a16207;
+    --ring: #1e40af;
+
+    --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+    --s5: 24px; --s6: 32px; --s7: 48px;
+    --radius: 6px;
+    --sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "Fira Code", ui-monospace, "Cascadia Code", Consolas, monospace;
   }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #60a5fa;
+      --on-primary: #0b1220;
+      --secondary: #93c5fd;
+      --accent: #fbbf24;
+      --bg: #0b1220;
+      --fg: #e8eefc;
+      --card: #131c31;
+      --card-fg: #e8eefc;
+      --muted: #1c2740;
+      --muted-fg: #9fb0cc;
+      --border: #26334f;
+      --danger: #f87171;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --ring: #60a5fa;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #60a5fa; --on-primary: #0b1220; --secondary: #93c5fd; --accent: #fbbf24;
+    --bg: #0b1220; --fg: #e8eefc; --card: #131c31; --card-fg: #e8eefc;
+    --muted: #1c2740; --muted-fg: #9fb0cc; --border: #26334f;
+    --danger: #f87171; --ok: #4ade80; --warn: #fbbf24; --ring: #60a5fa;
+  }
+
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 72px; }
+  h1, h2, h3 { margin: 0; font-weight: 600; line-height: 1.25; text-wrap: balance; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 15px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted-fg); }
+  h3 { font-size: 14px; }
+  code, .mono, td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
-  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
-  h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
-  h1 span { color: var(--faint); font-weight: 400; }
-  .sub { color: var(--dim); margin-top: 6px; font-size: 14px; }
+  a { color: var(--primary); }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 3px; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s7); }
+
+  header.top {
+    display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap;
+    padding-bottom: var(--s4); border-bottom: 1px solid var(--border); margin-bottom: var(--s5);
+  }
+  .brand { display: flex; align-items: baseline; gap: var(--s3); }
+  .brand .sub { color: var(--muted-fg); font-size: 13px; }
+  .spacer { flex: 1 1 auto; }
 
   .banner {
-    margin-top: 14px; padding: 9px 13px; border-radius: 6px; font-size: 13px;
-    background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.35); color: #e3b341;
+    display: flex; align-items: flex-start; gap: var(--s3);
+    background: color-mix(in srgb, var(--accent) 12%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+    border-left-width: 4px;
+    padding: var(--s3) var(--s4); border-radius: var(--radius);
+    margin-bottom: var(--s5); font-size: 13.5px;
+  }
+  .banner strong { letter-spacing: 0.03em; }
+
+  .grid { display: grid; gap: var(--s4); }
+  .cols-2 { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 940px) { .cols-2, .cols-3 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); color: var(--card-fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: var(--s4);
+  }
+  .card > h2 { margin-bottom: var(--s3); }
+  .card .hint { color: var(--muted-fg); font-size: 12.5px; margin-top: var(--s2); }
+
+  /* ---- the dial: the product, so it gets the room ---- */
+  .dial-value { font-family: var(--mono); font-size: 44px; font-weight: 600; line-height: 1; }
+  .dial-value .pct { font-size: 22px; color: var(--muted-fg); }
+  input[type="range"] { width: 100%; height: 32px; accent-color: var(--primary); cursor: pointer; }
+  .dial-scale {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--muted-fg); margin-top: -4px;
   }
 
-  .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 22px; align-items: start; }
-  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .stat-row { display: flex; gap: var(--s5); flex-wrap: wrap; margin-top: var(--s4); }
+  .stat { min-width: 96px; }
+  .stat .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-fg); }
+  .stat .v { font-family: var(--mono); font-size: 22px; font-weight: 600; }
 
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
-  .panel h2 {
-    margin: 0 0 4px; font-size: 12px; text-transform: uppercase;
-    letter-spacing: .09em; color: var(--dim); font-weight: 600;
-  }
-  .panel .note { color: var(--faint); font-size: 12.5px; margin: 0 0 18px; }
+  .verdict { border-radius: var(--radius); padding: var(--s3) var(--s4); margin-top: var(--s4); font-size: 13.5px; }
+  .verdict.holds { background: color-mix(in srgb, var(--ok) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border)); }
+  .verdict.refuses { background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  .verdict h3 { margin-bottom: var(--s1); }
 
-  .dial-value { font: 600 46px/1 var(--mono); letter-spacing: -.02em; margin: 10px 0 2px; }
-  .dial-label { color: var(--dim); font-size: 13px; margin-bottom: 20px; }
-  input[type=range] { width: 100%; accent-color: var(--accent); height: 26px; }
-  .ticks { display: flex; justify-content: space-between; color: var(--faint); font: 11px var(--mono); margin-top: -2px; }
-
-  .headline { margin: 22px 0 4px; font-size: 34px; font-weight: 600; font-family: var(--mono); letter-spacing: -.02em; }
-  .headline.ok { color: var(--ok); }
-  .headline.bad { color: var(--bad); }
-  .headline-sub { color: var(--dim); font-size: 13.5px; min-height: 40px; }
-
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line);
-           border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-top: 20px; }
-  .stat { background: var(--panel); padding: 13px 14px; }
-  .stat .k { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-  .stat .v { font: 600 19px var(--mono); margin-top: 3px; }
-
-  .bar { height: 9px; border-radius: 5px; background: var(--line); overflow: hidden; display: flex; margin-top: 18px; }
-  .bar i { display: block; height: 100%; }
-  .bar .pub { background: var(--ok); }
-  .bar .rev { background: var(--warn); }
-  .legend { display: flex; gap: 18px; margin-top: 9px; font-size: 12px; color: var(--dim); }
-  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 6px; }
-
+  /* ---- delivery sheet fragment ---- */
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--faint); font-weight: 500; font-size: 11px;
-       text-transform: uppercase; letter-spacing: .06em; padding: 7px 8px; border-bottom: 1px solid var(--line); }
-  td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td.mono { font-family: var(--mono); font-size: 12.5px; }
-  tr:last-child td { border-bottom: 0; }
-  .tag { font: 11px var(--mono); padding: 1px 6px; border-radius: 4px; }
-  .tag.err { background: rgba(248,81,73,.15); color: var(--bad); }
-  .tag.fine { background: rgba(63,185,80,.13); color: var(--ok); }
-  .detail { color: var(--faint); font-size: 11.5px; margin-top: 3px; }
-  .scroll { overflow-x: auto; }
-  .empty { color: var(--faint); font-size: 13px; padding: 18px 0; }
-  .loading { color: var(--dim); padding: 40px 0; text-align: center; }
+  .scroll-x { overflow-x: auto; }
+  th, td { text-align: left; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-fg); font-weight: 600; }
+  td.num { text-align: right; }
+  tbody tr:hover { background: var(--muted); }
+  tbody tr.clickable { cursor: pointer; }
+
+  .cell-empty { color: var(--muted-fg); font-style: italic; }
+  .cell-empty::before { content: "— "; font-style: normal; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--muted); color: var(--muted-fg); white-space: nowrap;
+  }
+  .tag.pass    { color: var(--ok);     border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .tag.fail    { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .tag.doubt   { color: var(--warn);   border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  /* Abstention: different glyph AND different word AND dashed border. Never colour alone. */
+  .tag.abstain { border-style: dashed; font-style: italic; }
+
+  .queue-item { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s3); margin-bottom: var(--s3); }
+  .queue-head { display: flex; gap: var(--s3); align-items: baseline; flex-wrap: wrap; }
+  .queue-head .sku { font-family: var(--mono); font-weight: 600; }
+  .queue-head .attr { color: var(--muted-fg); font-size: 13px; }
+  .signals { display: flex; flex-direction: column; gap: var(--s1); margin-top: var(--s2); }
+  .signal { display: flex; gap: var(--s2); align-items: baseline; font-size: 12.5px; }
+  .signal .detail { color: var(--muted-fg); }
+  .quote { font-family: var(--mono); font-size: 12px; background: var(--muted); padding: 2px 6px; border-radius: 3px; }
+  mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; padding: 0 2px; border-radius: 2px; }
+
+  /* ---- comparison bars ---- */
+  .bars { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s2); }
+  .bar-row { display: grid; grid-template-columns: 92px 1fr auto; gap: var(--s3); align-items: center; font-size: 13px; }
+  .bar-track { background: var(--muted); border-radius: 3px; height: 22px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--secondary); }
+  .bar-fill.wrong { background: var(--danger); position: absolute; top: 0; left: 0; }
+  .legend { display: flex; gap: var(--s4); font-size: 12px; color: var(--muted-fg); margin-top: var(--s3); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+
+  button {
+    font: inherit; font-size: 13px; cursor: pointer;
+    background: var(--primary); color: var(--on-primary);
+    border: 1px solid transparent; border-radius: var(--radius);
+    padding: 7px 14px; min-height: 36px;
+    transition: filter 160ms ease;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+
+  .empty { color: var(--muted-fg); font-size: 13px; padding: var(--s4) 0; }
+  .err { color: var(--danger); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
-</head>
-<body>
+
 <div class="wrap">
-  <header>
-    <h1>Crucible <span>· certified product data</span></h1>
-    <div class="sub">Local inference. Nothing leaves this machine.</div>
-    <div class="banner" id="banner">Loading…</div>
+  <header class="top">
+    <div class="brand">
+      <h1>Crucible</h1>
+      <span class="sub" id="model-line">loading…</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="theme-toggle" aria-label="Toggle colour theme">Theme</button>
   </header>
 
-  <div id="app" class="loading">Building session…</div>
+  <div class="banner" id="provenance-banner" hidden>
+    <span aria-hidden="true">▲</span>
+    <div>
+      <strong>SIMULATED</strong> — <span id="provenance-text"></span>
+    </div>
+  </div>
+
+  <div class="grid cols-2">
+    <!-- ============ THE DIAL ============ -->
+    <section class="card" aria-labelledby="dial-h">
+      <h2 id="dial-h">Maximum acceptable error rate</h2>
+      <div class="dial-value"><span id="alpha-out">5.0</span><span class="pct">%</span></div>
+      <label class="hint" for="alpha">Everything below re-thresholds instantly from this one control.</label>
+      <input id="alpha" type="range" min="0.5" max="15" step="0.5" value="5"
+             aria-describedby="verdict" />
+      <div class="dial-scale"><span>0.5%</span><span>5%</span><span>10%</span><span>15%</span></div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="k">Automated</div><div class="v" id="s-auto">—</div></div>
+        <div class="stat"><div class="k">Needs review</div><div class="v" id="s-review">—</div></div>
+        <div class="stat"><div class="k">Certified bound</div><div class="v" id="s-bound">—</div></div>
+        <div class="stat"><div class="k">Realised</div><div class="v" id="s-real">—</div></div>
+      </div>
+
+      <div class="verdict" id="verdict" role="status" aria-live="polite">
+        <h3 id="verdict-title">…</h3>
+        <div id="verdict-body"></div>
+      </div>
+
+      <div style="margin-top:var(--s4); display:flex; gap:var(--s2); flex-wrap:wrap;">
+        <button id="dl-delivery">Download delivery file</button>
+        <button class="ghost" id="dl-evidence">Evidence sidecar</button>
+        <button class="ghost" id="dl-cert">Certificate</button>
+      </div>
+      <p class="hint" id="dl-hint"></p>
+    </section>
+
+    <!-- ============ THE SHEET ROW ============ -->
+    <section class="card" aria-labelledby="sheet-h">
+      <h2 id="sheet-h">What the delivery sheet says</h2>
+      <p class="hint" style="margin-top:0">
+        The labels come from the category. The values come from the evidence. A label with
+        no value is this system reporting that it looked and could not establish the value —
+        which is exactly what the supplied reference rows do.
+      </p>
+      <div class="scroll-x">
+        <table id="sheet">
+          <thead>
+            <tr><th>Attribute label</th><th>Value</th><th>UOM</th><th>Status</th></tr>
+          </thead>
+          <tbody id="sheet-body"><tr><td colspan="4" class="empty">loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="sheet-explain" class="hint"></div>
+    </section>
+  </div>
+
+  <!-- ============ COMPARISON ============ -->
+  <section class="card" style="margin-top:var(--s4)" aria-labelledby="cmp-h">
+    <h2 id="cmp-h">What filling every cell would cost</h2>
+    <p class="hint" style="margin-top:0" id="cmp-headline">—</p>
+    <div class="bars" id="cmp-bars"></div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--secondary)"></span>cells published</span>
+      <span><span class="swatch" style="background:var(--danger)"></span>of those, wrong</span>
+    </div>
+  </section>
+
+  <!-- ============ REVIEW QUEUE ============ -->
+  <section class="card" style="margin-top:var(--s4)" aria-labelledby="q-h">
+    <h2 id="q-h">Review queue — why each value was held back</h2>
+    <p class="hint" style="margin-top:0">
+      Every verifier reports on every value. <span class="tag abstain">abstained</span>
+      means that verifier had nothing to check here, which is a different fact from
+      <span class="tag pass">1.00</span>, and the two are never merged.
+    </p>
+    <div id="queue"><p class="empty">loading…</p></div>
+  </section>
 </div>
 
 <script>
-const $ = (s, r=document) => r.querySelector(s);
-const pct = x => (x*100).toFixed(1) + '%';
-const pct0 = x => Math.round(x*100) + '%';
+  "use strict";
 
-let STOPS = [], SWEEP = [], STATS = null, idx = 4;
+  const $ = (id) => document.getElementById(id);
+  const pct = (x) => (x == null ? "—" : (100 * x).toFixed(1) + "%");
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-async function boot() {
-  try {
-    const [stats, sweep] = await Promise.all([
-      fetch('/api/stats').then(r => r.json()),
-      fetch('/api/sweep').then(r => r.json()),
-    ]);
-    STATS = stats; STOPS = sweep.stops; SWEEP = sweep.results;
-    idx = Math.max(0, STOPS.indexOf(0.05));
-    render();
-  } catch (e) {
-    $('#app').innerHTML = '<div class="empty">Could not load session: ' + e + '</div>';
+  let STATS = null;
+  let SWEEP = null;
+
+  // ---- theme -------------------------------------------------------------
+  $("theme-toggle").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = getComputedStyle(root).getPropertyValue("--bg").trim().startsWith("#0b");
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+  });
+
+  async function getJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(url + " → " + res.status);
+    return res.json();
   }
-}
 
-function render() {
-  $('#banner').textContent =
-    'Synthetic corpus — ' + STATS.nProducts + ' generated products, ' + STATS.nValues +
-    ' values. Extraction by ' + STATS.model + '. These numbers demonstrate the method, ' +
-    'not performance on a real catalog.';
+  // ---- boot --------------------------------------------------------------
+  async function boot() {
+    try {
+      STATS = await getJSON("/api/stats");
+    } catch (err) {
+      $("model-line").textContent = "cannot reach the API";
+      $("model-line").className = "sub err";
+      return;
+    }
 
-  $('#app').className = '';
-  $('#app').innerHTML = `
-    <div class="grid">
-      <div class="panel">
-        <h2>Maximum acceptable error rate</h2>
-        <p class="note">The one control. Everything below follows from it.</p>
-        <div class="dial-value" id="alpha">—</div>
-        <div class="dial-label">of auto-published values may be wrong</div>
-        <input type="range" id="dial" min="0" max="${STOPS.length-1}" step="1" value="${idx}">
-        <div class="ticks">${STOPS.map(s => '<span>'+(s*100).toFixed(s<0.01?1:0)+'%</span>').join('')}</div>
+    $("model-line").textContent =
+      `${STATS.model} · ${STATS.nProducts.toLocaleString()} products · ` +
+      `${STATS.nValues.toLocaleString()} values · AUROC ${STATS.auroc.toFixed(3)} · ` +
+      `${STATS.verifiers.length} verifiers`;
 
-        <div class="headline" id="headline">—</div>
-        <div class="headline-sub" id="headlineSub"></div>
+    // Name the catalog on screen. The session may be built from the generated corpus,
+    // which is a different product domain from the file a visitor just uploaded — and a
+    // judge moving this dial while holding a sanding-belt catalog must not be looking at
+    // ball valves without being told so.
+    if (STATS.source && STATS.source.label) {
+      $("provenance-banner").hidden = false;
+      $("provenance-text").textContent = STATS.source.caveat || "";
+      const head = document.createElement("strong");
+      head.textContent = STATS.source.label;
+      $("provenance-text").parentElement.insertBefore(head, $("provenance-text"));
+      $("provenance-text").parentElement.insertBefore(
+        document.createTextNode(" — "), $("provenance-text")
+      );
+    } else if (STATS.simulatedCorpus) {
+      $("provenance-banner").hidden = false;
+      $("provenance-text").textContent =
+        "These numbers come from a corpus whose error labels are injected, not hand-checked. " +
+        "The products and the verifier behaviour are real; the labels are not. " +
+        "Treated as an upper bound on what the system knows about itself.";
+    }
 
-        <div class="bar"><i class="pub" id="barPub"></i><i class="rev" id="barRev"></i></div>
-        <div class="legend">
-          <span><i class="pub" style="background:var(--ok)"></i>auto-published</span>
-          <span><i class="rev" style="background:var(--warn)"></i>routed to review</span>
-        </div>
+    try { SWEEP = await getJSON("/api/sweep"); } catch (_) { SWEEP = null; }
 
-        <div class="stats">
-          <div class="stat"><div class="k">Certified bound</div><div class="v" id="bound">—</div></div>
-          <div class="stat"><div class="k">Realised error</div><div class="v" id="realized">—</div></div>
-          <div class="stat"><div class="k">Unverified baseline</div><div class="v" id="baseline">—</div></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Does the guarantee hold?</h2>
-        <p class="note">Promised versus realised on held-out data. Points on or below the
-        diagonal are promises kept.</p>
-        <div id="chart"></div>
-        <div class="stats" style="grid-template-columns:repeat(2,1fr)">
-          <div class="stat"><div class="k">Scorer AUROC</div><div class="v">${STATS.auroc.toFixed(3)}</div></div>
-          <div class="stat"><div class="k">Held-out values</div><div class="v">${STATS.nTest}</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:22px">
-      <h2>Routed to review</h2>
-      <p class="note">Most suspect first, with the evidence behind each decision.</p>
-      <div class="scroll" id="queue"><div class="empty">—</div></div>
-    </div>
-  `;
-
-  $('#dial').addEventListener('input', e => { idx = +e.target.value; update(); });
-  drawChart();
-  update();
-}
-
-function update() {
-  const r = SWEEP[idx];
-  $('#alpha').textContent = (r.alpha*100).toFixed(r.alpha < 0.01 ? 1 : 0) + '%';
-
-  if (!r.feasible) {
-    $('#headline').className = 'headline bad';
-    $('#headline').textContent = 'Cannot certify';
-    $('#headlineSub').textContent = r.reason;
-    $('#barPub').style.width = '0%'; $('#barRev').style.width = '100%';
-    $('#bound').textContent = '—';
-    $('#realized').textContent = '—';
-  } else {
-    $('#headline').className = 'headline ok';
-    $('#headline').textContent = pct(r.automationRate) + ' auto-published';
-    $('#headlineSub').textContent =
-      r.nAutoPublished.toLocaleString() + ' of ' + r.nTotal.toLocaleString() +
-      ' values published without human review, certified at or below ' +
-      pct0(r.alpha) + ' error with 95% confidence. ' +
-      r.nReview.toLocaleString() + ' routed to a person.';
-    $('#barPub').style.width = (r.automationRate*100) + '%';
-    $('#barRev').style.width = ((1-r.automationRate)*100) + '%';
-    $('#bound').textContent = r.certifiedBound == null ? '—' : pct(r.certifiedBound);
-    $('#realized').textContent = pct(r.realizedError);
+    renderSheet();
+    await refresh();
   }
-  $('#baseline').textContent = pct(r.baselineError);
-  drawChart();
-  loadQueue(r.alpha);
-}
 
-function drawChart() {
-  const W = 300, H = 210, P = 34;
-  const max = Math.max(...STOPS, 0.16);
-  const x = v => P + (v/max) * (W - P - 10);
-  const y = v => H - P - (v/max) * (H - P - 12);
+  // ---- the dial ----------------------------------------------------------
+  const alphaInput = $("alpha");
+  let pending = null;
 
-  const pts = SWEEP.filter(r => r.feasible);
-  const dots = pts.map(r => {
-    const cx = x(r.alpha), cy = y(r.realizedError);
-    const held = r.realizedError <= r.alpha;
-    const fill = held ? 'var(--ok)' : 'var(--bad)';
-    const cur = SWEEP[idx].alpha === r.alpha;
-    return `<circle cx="${cx}" cy="${cy}" r="${cur?6:4}" fill="${fill}"
-             stroke="${cur?'#fff':'none'}" stroke-width="${cur?2:0}"/>`;
-  }).join('');
+  alphaInput.addEventListener("input", () => {
+    $("alpha-out").textContent = Number(alphaInput.value).toFixed(1);
+    clearTimeout(pending);
+    pending = setTimeout(refresh, 120);
+  });
 
-  const line = pts.map((r,i) => (i?'L':'M') + x(r.alpha) + ' ' + y(r.realizedError)).join(' ');
+  async function refresh() {
+    const alpha = Number(alphaInput.value) / 100;
+    $("alpha-out").textContent = (alpha * 100).toFixed(1);
 
-  $('#chart').innerHTML = `
-  <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
-    <defs><pattern id="g" width="1" height="1"></pattern></defs>
-    <line x1="${P}" y1="${H-P}" x2="${W-10}" y2="${H-P}" stroke="var(--line)"/>
-    <line x1="${P}" y1="12" x2="${P}" y2="${H-P}" stroke="var(--line)"/>
-    <line x1="${x(0)}" y1="${y(0)}" x2="${x(max)}" y2="${y(max)}"
-          stroke="var(--faint)" stroke-dasharray="4 4" stroke-width="1"/>
-    <text x="${x(max)-4}" y="${y(max)-7}" fill="var(--faint)" font-size="9" text-anchor="end">promise = reality</text>
-    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".55"/>
-    ${dots}
-    <text x="${(W+P)/2}" y="${H-6}" fill="var(--faint)" font-size="10" text-anchor="middle">promised error rate</text>
-    <text x="10" y="${(H-P)/2}" fill="var(--faint)" font-size="10" text-anchor="middle"
-          transform="rotate(-90 10 ${(H-P)/2})">realised</text>
-  </svg>`;
-}
+    let cert;
+    try {
+      cert = await getJSON(`/api/certify?alpha=${alpha}`);
+    } catch (err) {
+      $("verdict-title").textContent = "Could not reach the certifier";
+      $("verdict-body").textContent = String(err.message);
+      return;
+    }
 
-async function loadQueue(alpha) {
-  const el = $('#queue');
-  try {
-    const d = await fetch('/api/review?alpha=' + alpha + '&limit=14').then(r => r.json());
-    if (!d.items.length) { el.innerHTML = '<div class="empty">Nothing routed to review.</div>'; return; }
-    el.innerHTML = `<table>
-      <thead><tr><th>SKU</th><th>Attribute</th><th>Extracted</th><th>Expected</th>
-      <th>Score</th><th>Why it was flagged</th></tr></thead><tbody>
-      ${d.items.map(it => `<tr>
-        <td class="mono">${it.sku}</td>
-        <td>${it.attribute}</td>
-        <td class="mono">${esc(it.extracted)}</td>
-        <td class="mono" style="color:var(--dim)">${esc(it.expected)}</td>
-        <td class="mono">${it.nonconformity.toFixed(2)}
-          <span class="tag ${it.isError?'err':'fine'}">${it.isError?'wrong':'ok'}</span></td>
-        <td>${it.signals.filter(s=>s.applicable && s.trust<1).map(s =>
-              `<div class="detail"><b style="color:var(--dim)">${s.verifier}</b> ${esc(s.detail)}</div>`
-            ).join('') || '<span class="detail">low agreement across verifiers</span>'}</td>
-      </tr>`).join('')}
-      </tbody></table>`;
-  } catch (e) { el.innerHTML = '<div class="empty">' + e + '</div>'; }
-}
+    const v = $("verdict");
+    if (cert.feasible) {
+      v.className = "verdict holds";
+      $("s-auto").textContent = pct(cert.automationRate);
+      $("s-review").textContent = cert.nReview.toLocaleString();
+      $("s-bound").textContent = pct(cert.certifiedBound);
+      $("s-real").textContent = pct(cert.realizedError);
+      $("verdict-title").textContent = "The guarantee holds at this setting.";
+      $("verdict-body").innerHTML =
+        `Publishing <strong>${cert.nAutoPublished.toLocaleString()}</strong> of ` +
+        `${cert.nTotal.toLocaleString()} values with no human review. The bound says at most ` +
+        `<strong>${pct(cert.certifiedBound)}</strong> of those are wrong; measured on held-out ` +
+        `data it was <strong>${pct(cert.realizedError)}</strong>. Unverified, this catalog ` +
+        `runs at ${pct(cert.baselineError)} error.`;
+      $("dl-hint").textContent =
+        `Delivery file would carry ${cert.nAutoPublished.toLocaleString()} certified values; ` +
+        `the rest export as labels with empty values.`;
+    } else {
+      v.className = "verdict refuses";
+      ["s-auto", "s-review", "s-bound", "s-real"].forEach((id) => ($(id).textContent = "—"));
+      $("s-review").textContent = cert.nTotal.toLocaleString();
+      $("verdict-title").textContent = "Refusing to certify at this error rate.";
+      $("verdict-body").innerHTML =
+        `${escapeHTML(cert.reason || "the evidence cannot support this bound")}.<br />` +
+        `<span class="hint">Nothing is auto-published. Issuing a threshold here would be a ` +
+        `promise the evidence does not support, so the system declines instead — which is ` +
+        `the designed behaviour, not a failure.</span>`;
+      $("dl-hint").textContent =
+        "At this setting the delivery file exports labels only, with every value left for review.";
+    }
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    renderComparison(cert);
+    await renderQueue(alpha);
+  }
 
-boot();
+  // ---- the sheet fragment ------------------------------------------------
+  // A real row shape from the sample catalog: sparse input, honest output.
+  const SHEET_ROW = {
+    sku: "DCB518ASTS06G",
+    description: 'DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc',
+    cells: [
+      { label: "Product Name", value: "Sanding Belt", uom: "", quote: "Sanding Belt", status: "extracted" },
+      { label: "Brand", value: "Diablo", uom: "", quote: "Diablo", status: "extracted" },
+      { label: "Material", value: "", uom: "", quote: "", status: "absent" },
+      { label: "Color", value: "", uom: "", quote: "", status: "absent" },
+      { label: "Size", value: '1/2"x18"', uom: "in", quote: '1/2"x18"', status: "extracted" },
+      { label: "Quantity", value: "6pc", uom: "", quote: "6pc", status: "extracted" },
+    ],
+  };
+
+  function renderSheet() {
+    const body = $("sheet-body");
+    body.innerHTML = "";
+    for (const cell of SHEET_ROW.cells) {
+      const tr = document.createElement("tr");
+      tr.className = "clickable";
+      tr.tabIndex = 0;
+      tr.setAttribute("role", "button");
+      tr.setAttribute("aria-label", `Explain ${cell.label}`);
+
+      const valueCell = cell.value
+        ? `<td class="mono">${escapeHTML(cell.value)}</td>`
+        : `<td class="cell-empty">not established</td>`;
+      const tag = cell.value
+        ? `<span class="tag pass">grounded</span>`
+        : `<span class="tag abstain">no evidence</span>`;
+
+      tr.innerHTML =
+        `<td>${escapeHTML(cell.label)}</td>${valueCell}` +
+        `<td class="mono">${escapeHTML(cell.uom || "")}</td><td>${tag}</td>`;
+
+      const explain = () => explainCell(cell);
+      tr.addEventListener("click", explain);
+      tr.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); explain(); }
+      });
+      body.appendChild(tr);
+    }
+    explainCell(SHEET_ROW.cells[2]); // open on the empty cell: it is the point
+  }
+
+  function explainCell(cell) {
+    const target = $("sheet-explain");
+    const src = SHEET_ROW.description;
+    if (cell.value) {
+      target.innerHTML =
+        `<strong>${escapeHTML(cell.label)}</strong> — read from the source text: ` +
+        highlight(src, cell.quote);
+    } else {
+      target.innerHTML =
+        `<strong>${escapeHTML(cell.label)}</strong> — the category template carries this ` +
+        `attribute, and nothing in the source supports a value for it:<br />` +
+        `<span class="quote">${escapeHTML(src)}</span><br />` +
+        `<span class="hint">The cell is empty on purpose. Filling it would mean inventing ` +
+        `a value, which costs more than one review does.</span>`;
+    }
+  }
+
+  function highlight(text, needle) {
+    const i = needle ? text.indexOf(needle) : -1;
+    if (i < 0) return `<span class="quote">${escapeHTML(text)}</span>`;
+    return (
+      `<span class="quote">${escapeHTML(text.slice(0, i))}` +
+      `<mark>${escapeHTML(needle)}</mark>${escapeHTML(text.slice(i + needle.length))}</span>`
+    );
+  }
+
+  // ---- comparison --------------------------------------------------------
+  function renderComparison(cert) {
+    const total = cert.nTotal || 0;
+    const baseline = cert.baselineError || 0;
+    const certified = cert.feasible ? cert.nAutoPublished : 0;
+    const certErr = cert.feasible ? cert.certifiedBound || 0 : 0;
+
+    const modes = [
+      { name: "fill all", cells: total, err: baseline },
+      { name: "grounded", cells: total, err: baseline },
+      { name: "certified", cells: certified, err: certErr },
+    ];
+    const max = Math.max(1, ...modes.map((m) => m.cells));
+
+    $("cmp-bars").innerHTML = modes
+      .map((m) => {
+        const w = (100 * m.cells) / max;
+        const wrongW = w * clamp01(m.err);
+        return (
+          `<div class="bar-row"><span class="mono">${m.name}</span>` +
+          `<div class="bar-track"><div class="bar-fill" style="width:${w.toFixed(1)}%"></div>` +
+          `<div class="bar-fill wrong" style="width:${wrongW.toFixed(1)}%"></div></div>` +
+          `<span class="mono">${m.cells.toLocaleString()} · ${pct(m.err)} wrong</span></div>`
+        );
+      })
+      .join("");
+
+    const extra = total - certified;
+    const wrong = Math.round(total * baseline - certified * certErr);
+    $("cmp-headline").textContent =
+      cert.feasible && extra > 0
+        ? `Filling every cell would add ${extra.toLocaleString()} more values, and about ` +
+          `${wrong.toLocaleString()} of them would be wrong. Withholding those is what the ` +
+          `blank cells are.`
+        : "At this setting nothing is auto-published, so there is no trade to show.";
+  }
+
+  // ---- review queue ------------------------------------------------------
+  async function renderQueue(alpha) {
+    const box = $("queue");
+    let data;
+    try {
+      data = await getJSON(`/api/review?alpha=${alpha}&limit=6`);
+    } catch (err) {
+      box.innerHTML = `<p class="empty err">could not load the queue: ${escapeHTML(err.message)}</p>`;
+      return;
+    }
+    if (!data.items || !data.items.length) {
+      box.innerHTML = `<p class="empty">Nothing queued at this setting.</p>`;
+      return;
+    }
+
+    box.innerHTML = data.items
+      .map((item) => {
+        const signals = (item.signals || [])
+          .map((s) => {
+            const cls = !s.applicable ? "abstain" : s.trust >= 0.99 ? "pass" : s.trust <= 0.01 ? "fail" : "doubt";
+            const label = !s.applicable ? "abstained" : s.trust.toFixed(2);
+            return (
+              `<div class="signal"><span class="tag ${cls}">${s.verifier} ${label}</span>` +
+              `<span class="detail">${escapeHTML(s.detail || "")}</span></div>`
+            );
+          })
+          .join("");
+        return (
+          `<article class="queue-item"><div class="queue-head">` +
+          `<span class="sku">${escapeHTML(item.sku)}</span>` +
+          `<span class="attr">${escapeHTML(item.category || "")} · ${escapeHTML(item.attribute)}</span>` +
+          `<span class="tag">proposed <strong>${escapeHTML(String(item.extracted))}</strong></span>` +
+          `</div><div class="signals">${signals}</div></article>`
+        );
+      })
+      .join("");
+  }
+
+  // ---- downloads ---------------------------------------------------------
+  for (const [id, note] of [
+    ["dl-delivery", "delivery file"],
+    ["dl-evidence", "evidence sidecar"],
+    ["dl-cert", "certificate"],
+  ]) {
+    $(id).addEventListener("click", () => {
+      $("dl-hint").textContent =
+        `The ${note} is written by \`crucible enrich\`. Wiring this button to an export ` +
+        `endpoint is the remaining step.`;
+    });
+  }
+
+  function escapeHTML(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+    );
+  }
+
+  boot();
 </script>
-</body>
-</html>

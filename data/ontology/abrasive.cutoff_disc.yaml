@@ -1,0 +1,139 @@
+# Cut-off wheels — the category that shows what a constraint verifier is for.
+#
+# 46 rows in the sample, and every one of them writes its three dimensions the same way:
+#
+#     49-94-0013 Milw 5"x.045"x7/8" Metal Cut Off Disc
+#                     └──┬──┘└──┬──┘└──┬─┘
+#                  diameter thickness arbor
+#
+# Three lengths, one fixed order, and a physical relationship between them that holds for
+# every wheel ever manufactured: the arbor hole is smaller than the wheel, and the wheel is
+# far thicker than nothing but far thinner than its own hole. Swap any two of those numbers
+# and you describe a wheel that cannot exist.
+#
+# That matters because the swap is exactly the error a model makes on this format. The
+# three values are dimensionally identical - all lengths, all in inches - so the dimensional
+# verifier cannot tell them apart, and an ensemble will happily agree on the same wrong
+# assignment across samples. The constraint is the only signal that catches it, which is
+# the whole argument for verifiers being external tools rather than second opinions.
+#
+# The `label` and `display_uom` fields are what the delivery sheet prints. `order` fixes
+# the ATTRIBUTE_LABEL n positions so a re-export never shuffles a customer's columns.
+
+category_id: abrasive.cutoff_disc
+name: Cut-Off Wheels
+unspsc: "23101500"
+
+attributes:
+  - name: disc_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Diameter
+    order: 1
+    required: true
+    description: >
+      Outside diameter of the wheel, the first of the three dimensions in the
+      diameter x thickness x arbor convention. Written in inches, usually whole or as a
+      mixed fraction ("4-1/2", "5", "6-1/2", "7", "9", "12").
+
+  - name: thickness
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Thickness
+    order: 2
+    required: true
+    description: >
+      Wheel thickness, the second dimension. Almost always a decimal fraction of an inch
+      (".045", "1/16", "1/8") and always the smallest of the three, which is what makes a
+      swapped value obvious to the constraint verifier and invisible to everything else.
+
+  - name: arbor_diameter
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Arbor Size
+    order: 3
+    required: true
+    description: >
+      Diameter of the mounting hole, the third dimension. Standard sizes are 7/8", 5/8"
+      and the threaded 5/8"-11. Cannot exceed the wheel diameter, since the hole is in
+      the wheel.
+
+  - name: material_application
+    kind: nominal
+    label: Application
+    order: 4
+    required: true
+    vocabulary:
+      - metal
+      - steel          # written plainly in this catalog, distinct from "metal"
+      - stainless steel
+      - aluminum
+      - masonry
+      - concrete
+      - tile
+      - multi-material
+
+  - name: wheel_type
+    kind: nominal
+    label: Wheel Type
+    order: 5
+    # Rewritten from measurement, not from a standards document. The original list held
+    # ISO type codes (type 1 flat, type 27 depressed center) and matched 0 of 38 real
+    # values: this catalog writes "Cut Off", "Grinding", "Dual Metal". A vocabulary the
+    # data never uses is not a controlled vocabulary, it is a filter that rejects
+    # everything.
+    vocabulary:
+      - cut-off
+      - grinding
+      - combination
+      - flap
+      - wire brush
+      - diamond
+
+  - name: abrasive_grain
+    kind: nominal
+    label: Abrasive
+    order: 6
+    vocabulary:
+      - aluminum oxide
+      - zirconia alumina
+      - ceramic
+      - silicon carbide
+      - diamond
+
+  - name: max_rpm
+    kind: quantity
+    dimension: "1 / [time]"
+    canonical_unit: 1 / minute
+    display_uom: RPM
+    label: Maximum Speed
+    order: 7
+    description: >
+      Maximum safe rotational speed. Inversely related to diameter — a larger wheel is
+      rated slower — which is why the constraint below is an upper bound rather than a
+      fixed figure.
+
+  - name: pack_quantity
+    kind: quantity
+    dimension: "[]"
+    canonical_unit: dimensionless
+    label: Quantity
+    order: 8
+    description: Wheels per pack, where the description states one ("6pc", "50 Disc/Box").
+
+constraints:
+  # The three that make this category worth having. A wheel whose mounting hole is larger
+  # than the wheel, or thicker than its own hole, is not a product variant — it is a
+  # mis-assigned extraction, and nothing else in the pipeline can see it.
+  - thickness < arbor_diameter
+  - arbor_diameter < disc_diameter
+  - thickness < disc_diameter
+  - disc_diameter > 0
+  - max_rpm > 0
+  - pack_quantity > 0

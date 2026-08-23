@@ -1,0 +1,122 @@
+# Pipe, tube and hose fittings.
+#
+# The Solution Guide calls Fittings_LOV.xlsx "the clearest example of many-to-one
+# normalisation" - 1,472 manufacturer connection-type variants collapsing to 515 canonical
+# values. That file was never published, so the vocabularies here are ordinary trade terms
+# and are described as such wherever this category's compliance is reported.
+#
+# The first constraint is what earns this category its place: a reducing fitting is written
+# "3/4 x 1/2" and the two sizes are dimensionally identical - both lengths, both inches -
+# so the dimensional verifier cannot tell them apart and an ensemble will agree with itself
+# on a swapped pair. Only the relationship between them distinguishes a correct extraction
+# from a reversed one. The same argument as the cut-off wheel, in a different trade.
+
+category_id: fitting.pipe
+name: Pipe & Tube Fittings
+unspsc: "40141600"
+
+attributes:
+  - name: product_name
+    kind: text
+    label: Product Name
+    order: 1
+    required: true
+    description: Elbow, Tee, Coupling, Nipple, Union, Bushing, Adapter.
+
+  - name: fitting_type
+    kind: nominal
+    label: Fitting Type
+    order: 2
+    required: true
+    vocabulary:
+      - elbow
+      - tee
+      - coupling
+      - nipple
+      - union
+      - bushing
+      - adapter
+      - cap
+      - plug
+      - cross
+      - reducer
+
+  - name: nominal_size
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Size
+    order: 3
+    required: true
+    description: Primary connection size, written as a fraction of an inch ("1/2", "3/4").
+
+  - name: reduced_size
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Reducing Size
+    order: 4
+    description: >
+      The smaller end of a reducing fitting. Both sizes are inches and dimensionally
+      identical, so a swap is invisible to every other check and caught only by the
+      constraint below.
+
+  - name: connection_type
+    kind: nominal
+    label: Connection Type
+    order: 5
+    vocabulary:
+      - FIP
+      - MIP
+      - NPT
+      - sweat
+      - press
+      - compression
+      - barb
+      - push-fit
+      - flare
+      - socket
+
+  - name: material
+    kind: nominal
+    label: Material
+    order: 6
+    required: true
+    vocabulary:
+      - brass
+      - copper
+      - PVC
+      - CPVC
+      - PEX
+      - stainless steel
+      - carbon steel
+      - malleable iron
+      - cast iron
+
+  - name: pressure_rating
+    kind: quantity
+    dimension: "[pressure]"
+    canonical_unit: psi
+    display_uom: PSI
+    label: Pressure Rating
+    order: 7
+    description: Written "150#", "300#" or "150 WOG" in this trade.
+
+  - name: angle
+    kind: nominal
+    label: Angle
+    order: 8
+    vocabulary:
+      - "90"
+      - "45"
+      - "22.5"
+      - "11.25"
+
+constraints:
+  # A reducing fitting reduces. Written "3/4 x 1/2", both numbers are inches, and nothing
+  # else in the pipeline can tell which one is which.
+  - reduced_size < nominal_size
+  - nominal_size > 0
+  - pressure_rating > 0

@@ -1,0 +1,109 @@
+# Railing systems — 38 rows.
+#
+#     6' Black Select Classic Horiz - Rail w/Rnd Black Alum Baluster
+#     6x6-10' Black Alum Deco - Support Post
+#     6'x36" Select Alm w/Sq Bal Hor - Assembled Black Rail Panel
+#
+# Railing is sold as sections, and a section is described by its run length and its height
+# — "6'x36"" is a six-foot run at thirty-six inches. Those are different dimensions in
+# different units in the same string, which is why the constraint below compares them: a
+# railing taller than it is long would be a post, not a section, and is almost always a
+# swapped extraction.
+#
+# `orientation` (horizontal vs stair) is load-bearing commercially. A stair section is cut
+# to a rake angle and is not interchangeable with a level one, so "Horiz" and "Str" in
+# these descriptions are a real product distinction rather than a formatting detail.
+
+category_id: decking.railing
+name: Railing Systems
+unspsc: "30151800"
+
+attributes:
+  - name: component_type
+    kind: nominal
+    label: Product Name
+    order: 1
+    required: true
+    vocabulary:
+      - rail section
+      - rail kit
+      - rail panel
+      - support post
+      - post sleeve
+      - post cap
+      - baluster
+      - bracket kit
+      - gate
+
+  - name: length
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: ft
+    label: Length
+    order: 2
+    required: true
+    description: Run length of the section — 6 ft and 8 ft are the stock sizes.
+
+  - name: height
+    kind: quantity
+    dimension: "[length]"
+    canonical_unit: millimeter
+    display_uom: in
+    label: Height
+    order: 3
+    description: >
+      Finished rail height, written in inches — 36 in for residential, 42 in for
+      commercial guard height.
+
+  - name: material
+    kind: nominal
+    label: Material
+    order: 4
+    required: true
+    vocabulary:
+      - aluminum
+      - composite
+      - PVC
+      - steel
+      - wood
+
+  - name: baluster_style
+    kind: nominal
+    label: Baluster Style
+    order: 5
+    vocabulary:
+      - round
+      - square
+      - glass
+      - cable
+      - none
+
+  - name: orientation
+    kind: nominal
+    label: Orientation
+    order: 6
+    vocabulary:
+      - horizontal
+      - stair
+
+  - name: colour
+    kind: text
+    label: Color
+    order: 7
+    description: Finish name — Black, White, Bronze, Charcoal.
+
+  - name: assembly
+    kind: nominal
+    label: Assembly
+    order: 8
+    vocabulary:
+      - assembled
+      - kit
+
+constraints:
+  # A section longer than it is tall. True of every railing run; false the moment the two
+  # figures in "6'x36\"" get assigned to the wrong attributes.
+  - height < length
+  - length > 0
+  - height > 0

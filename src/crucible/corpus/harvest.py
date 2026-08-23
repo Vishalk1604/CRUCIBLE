@@ -28,6 +28,7 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -65,14 +66,29 @@ class Harvest:
         )
 
 
-def _cache_key(model: str, n_per_category: int, seed: int, use_rules: bool) -> str:
+def _cache_key(
+    model: str,
+    n_per_category: int,
+    seed: int,
+    use_rules: bool,
+    category_ids: Iterable[str] | None = None,
+) -> str:
     """Fingerprint everything that changes the extraction.
 
     Includes the prompt text and schema fingerprints, not just the model name. Editing a
     prompt without invalidating the cache would score the old prompt's mistakes against
     the new one's expectations, and nothing in the output would look wrong.
+
+    Scoped to the categories the corpus actually uses. Keying on every schema in the
+    ontology looks more conservative but is worse: adding an unrelated category would
+    invalidate a cache whose contents it cannot affect, and because the session is built
+    inside the API lifespan, the next launch would silently spend ~25 minutes
+    re-extracting before serving a request.
     """
     schemas = load_all()
+    if category_ids is not None:
+        wanted = set(category_ids)
+        schemas = {k: v for k, v in schemas.items() if k in wanted}
     parts = [
         model,
         str(n_per_category),
@@ -129,7 +145,7 @@ def harvest(
     gold = {g.raw.sku: g for g in corpus}
     schemas = load_all()
 
-    key = _cache_key(model, n_per_category, seed, use_rules)
+    key = _cache_key(model, n_per_category, seed, use_rules, {g.category_id for g in corpus})
     path = (cache_dir or DEFAULT_CACHE) / f"{key}.json"
 
     if not refresh:
@@ -188,7 +204,13 @@ def harvest_sample(
     gold = {g.raw.sku: g for g in corpus}
     schemas = load_all()
 
-    key = _cache_key(f"{model}@t{temperature}#s{sample_index}", n_per_category, seed, False)
+    key = _cache_key(
+        f"{model}@t{temperature}#s{sample_index}",
+        n_per_category,
+        seed,
+        False,
+        {g.category_id for g in corpus},
+    )
     path = (cache_dir or DEFAULT_CACHE) / f"sample-{key}.json"
 
     if not refresh:

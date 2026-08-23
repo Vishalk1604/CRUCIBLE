@@ -23,16 +23,19 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from crucible.api.source import SYNTHETIC_SOURCE, CatalogSource
 from crucible.assay.coherence import CoherenceVerifier
 from crucible.assay.coherence import fit as fit_profile
 from crucible.assay.constraints import ConstraintVerifier
 from crucible.assay.dimensional import DimensionalVerifier
 from crucible.assay.ensemble import EnsembleIndex, EnsembleVerifier, build_index
+from crucible.assay.identity import IdentityVerifier
+from crucible.assay.vocabulary import VocabularyVerifier
 from crucible.certify.conformal import apply_threshold, select_threshold
 from crucible.certify.scorer import LearnedScorer, discrimination
 from crucible.corpus.harvest import harvest, harvest_sample
 from crucible.normalize import normalise_record
-from crucible.ontology import load_all
+from crucible.ontology import GENERIC_CATEGORY_ID, generic_schema, load_all
 from crucible.pipeline import ScoredValue, values_agree
 from crucible.verdict import Assay, Decision
 
@@ -82,21 +85,29 @@ class CertificationSession:
         use_rules: bool = False,
         delta: float = 0.05,
         ensemble_samples: int = 2,
+        source: CatalogSource | None = None,
     ) -> None:
         self.model = model
         self.delta = delta
-        self.schemas = load_all()
+        self.schemas = dict(load_all())
+        self.schemas[GENERIC_CATEGORY_ID] = generic_schema()
+        self.source = source or SYNTHETIC_SOURCE
 
-        harvested = harvest(
-            model=model, n_per_category=n_per_category, seed=seed, use_rules=use_rules
-        )
+        if source is None:
+            harvested = harvest(
+                model=model, n_per_category=n_per_category, seed=seed, use_rules=use_rules
+            )
+            records, self.gold = harvested.records, harvested.gold
+            self.from_cache = harvested.from_cache
+        else:
+            records, self.gold = source.records, source.gold
+            self.from_cache = source.from_cache
+
         self.records = [
             normalise_record(r, self.schemas[r.category_id])
-            for r in harvested.records
+            for r in records
             if r.category_id in self.schemas
         ]
-        self.gold = harvested.gold
-        self.from_cache = harvested.from_cache
 
         # The coherence profile is fitted on the extraction, so it must be built before
         # the verifiers run and cannot be a per-value construction.
@@ -106,7 +117,14 @@ class CertificationSession:
         # minutes of inference, and silently doing that inside a constructor - during
         # app startup, no less - would look like a hang. Absent samples simply mean the
         # ensemble verifier abstains everywhere, which the fusion model handles.
-        self.ensemble = self._load_ensemble(ensemble_samples, model, n_per_category, seed)
+        # Resampling passes exist only for the synthetic corpus. On a real-catalog source
+        # the ensemble verifier simply abstains everywhere, which the fusion model already
+        # encodes as "not checked" rather than "checked and fine".
+        self.ensemble = (
+            self._load_ensemble(ensemble_samples, model, n_per_category, seed)
+            if source is None
+            else {}
+        )
 
         self.scored = self._assay()
         if not self.scored:
@@ -168,6 +186,8 @@ class CertificationSession:
         return [
             DimensionalVerifier(),
             ConstraintVerifier(schema),
+            IdentityVerifier(),
+            VocabularyVerifier(),
             CoherenceVerifier(self.profile),
             EnsembleVerifier(self.ensemble),
         ]
@@ -309,5 +329,6 @@ class CertificationSession:
             "verifiers": self.verifier_names,
             "weights": self.scorer.weights(),
             # Every number here comes from a generated corpus, not a real catalog.
-            "simulatedCorpus": True,
+            "simulatedCorpus": self.source.simulated,
+            "source": self.source.to_dict(),
         }
